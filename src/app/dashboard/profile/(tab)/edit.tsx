@@ -1,43 +1,55 @@
 import { Icon } from "@iconify/react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Image,
-    StatusBar,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Image,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
-import { userService } from "../../../../api/services/userService";
 import { useGlobalNotification } from "../../../../modules/GlobalNotificationWrapper";
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { tab } = useLocalSearchParams<{ tab: string }>();
   const { showNotification } = useGlobalNotification();
 
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [fullname, setFullname] = useState("");
+  const [bio, setBio] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [email, setEmail] = useState("yuhu@example.com");
-  const [password, setPassword] = useState("example123");
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    // Fetch user profile data
-    async function fetchUserProfile() {
-      try {
-        const response = await userService.getCurrentProfile();
-        if (response.success && response.data) {
-          setEmail(response.data.email);
-        }
-      } catch (error) {
-        console.error("Gagal mengambil profil:", error);
-      }
-    }
-
     fetchUserProfile();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const res = await axios.get("http://localhost:8181/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.data) {
+        setFullname(res.data.fullname || "");
+        setBio(res.data.bio || "");
+        setProfileImage(res.data.avatar_url || null);
+        setProfileId(res.data.id); // <-- ambil profile id
+      }
+    } catch (error) {
+      console.error("Gagal mengambil profil:", error);
+      showNotification({
+        type: "error",
+        message: "Gagal memuat data profil",
+      });
+    }
+  };
 
   const handleGoBack = () => {
     router.back();
@@ -53,58 +65,66 @@ export default function EditProfileScreen() {
 
     if (!result.canceled) {
       setProfileImage(result.assets[0].uri);
+      // TODO: Upload ke Supabase Storage lalu simpan URL-nya
     }
   };
 
   const handleSave = () => {
     showNotification({
-      type: 'warning',
-      title: 'Simpan Perubahan?',
-      message: 'Apakah Anda yakin ingin menyimpan perubahan profil?',
-      onCancel: () => console.log('Batal'),
+      type: "warning",
+      title: "Simpan Perubahan?",
+      message: "Apakah Anda yakin ingin menyimpan perubahan profil?",
+      onCancel: () => console.log("Batal"),
       onConfirm: async () => {
         try {
-          // Logika update profil
+          if (!profileId) {
+            showNotification({
+              type: "error",
+              message: "ID profil tidak ditemukan.",
+            });
+            return;
+          }
+
+          const token = await AsyncStorage.getItem("authToken");
+
           const updateData = {
-            email,
-            // Tambahkan field lain yang perlu diupdate
+            fullname,
+            bio,
+            avatar_url: profileImage,
           };
 
-          const response = await userService.updateProfile(updateData);
+          const res = await axios.put(
+            `http://localhost:8181/profile/${profileId}`,
+            updateData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
-          if (response.success) {
+          if (res.data) {
             showNotification({
-              type: 'success',
-              message: 'Profil berhasil diperbarui',
-              duration: 2000
+              type: "success",
+              message: "Profil berhasil diperbarui",
+              duration: 2000,
             });
             router.back();
-          } else {
-            showNotification({
-              type: 'error',
-              message: 'Gagal memperbarui profil',
-            });
           }
         } catch (error) {
-          console.error("Gagal memperbarui profil:", error);
+          console.error("Gagal update profil:", error);
           showNotification({
-            type: 'error',
-            message: 'Terjadi kesalahan saat memperbarui profil',
+            type: "error",
+            message: "Terjadi kesalahan saat menyimpan profil",
           });
         }
-      }
+      },
     });
   };
 
   return (
-    <View 
-      className="flex-1" 
-      style={{ backgroundColor: '#F9EFE4' }}
-    >
-      <StatusBar 
-        backgroundColor="#F9EFE4" 
-        barStyle="dark-content" 
-      />
+    <View className="flex-1" style={{ backgroundColor: '#F9EFE4' }}>
+      <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
       {/* Header */}
       <View className="flex-row items-center p-4">
@@ -115,113 +135,52 @@ export default function EditProfileScreen() {
       </View>
 
       <View className="flex-1 items-center px-6 pt-8">
-        {/* Foto Profil */}
-        <TouchableOpacity 
+        {/* Avatar */}
+        <TouchableOpacity
           onPress={pickProfileImage}
           className="w-40 h-40 rounded-full justify-center items-center mb-6"
-          style={{ 
-            backgroundColor: 'white',
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: 2,
-          }}
+          style={shadowStyle}
         >
           {profileImage ? (
-            <Image 
-              source={{ uri: profileImage }} 
-              className="w-full h-full rounded-full" 
-              resizeMode="cover" 
-            />
+            <Image source={{ uri: profileImage }} className="w-full h-full rounded-full" resizeMode="cover" />
           ) : (
-            <Image 
-              source={require('../../../../assets/images/logoSplash.png')}
-              className="w-32 h-32 rounded-full"
-              resizeMode="contain"
-            />
+            <Image source={require('../../../../assets/images/logoSplash.png')} className="w-32 h-32 rounded-full" resizeMode="contain" />
           )}
-          <View 
-            className="absolute bottom-0 right-0 bg-[#EEC887] rounded-full p-2"
-          >
-            <Icon 
-              icon="mdi:pencil" 
-              width={20} 
-              height={20} 
-              color="#4E7D79" 
-            />
+          <View className="absolute bottom-0 right-0 bg-[#EEC887] rounded-full p-2">
+            <Icon icon="mdi:pencil" width={20} height={20} color="#4E7D79" />
           </View>
         </TouchableOpacity>
 
-        {/* Email */}
+        {/* Fullname */}
         <View className="w-full mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Email</Text>
-          <View 
-            className="bg-white rounded-xl px-4 py-3 flex-row items-center"
-            style={{ 
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <Icon 
-              icon="mdi:email-outline" 
-              width={24} 
-              height={24} 
-              color="#4E7D79" 
-            />
+          <Text className="mb-2 text-[#4E7D79]">Full Name</Text>
+          <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
             <TextInput
-              placeholder="Email"
+              placeholder="Nama lengkap"
               placeholderTextColor="#4E7D79"
-              value={email}
-              onChangeText={setEmail}
-              className="flex-1 ml-3 text-[#4E7D79]"
-              keyboardType="email-address"
+              value={fullname}
+              onChangeText={setFullname}
+              className="text-[#4E7D79]"
             />
           </View>
         </View>
 
-        {/* Password */}
+        {/* Bio */}
         <View className="w-full mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Password</Text>
-          <View 
-            className="bg-white rounded-xl px-4 py-3 flex-row items-center"
-            style={{ 
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <Icon 
-              icon="mdi:lock-outline" 
-              width={24} 
-              height={24} 
-              color="#4E7D79" 
-            />
+          <Text className="mb-2 text-[#4E7D79]">Bio</Text>
+          <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
             <TextInput
-              placeholder="Password"
+              placeholder="Bio"
               placeholderTextColor="#4E7D79"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              className="flex-1 ml-3 text-[#4E7D79]"
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              className="text-[#4E7D79]"
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Icon 
-                icon={showPassword ? "mdi:eye-off-outline" : "mdi:eye-outline"} 
-                width={24} 
-                height={24} 
-                color="#4E7D79" 
-              />
-            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Tombol Simpan */}
+        {/* Save Button */}
         <TouchableOpacity
           onPress={handleSave}
           className="bg-[#EEC887] rounded-xl py-4 items-center w-full mt-6"
@@ -232,3 +191,11 @@ export default function EditProfileScreen() {
     </View>
   );
 }
+
+const shadowStyle = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+  elevation: 2,
+};

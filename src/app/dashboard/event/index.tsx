@@ -1,8 +1,9 @@
+import axios from "axios";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import {
-  Image,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -10,26 +11,53 @@ import {
   View
 } from "react-native";
 
-// Gunakan data dummy untuk event
-const dummyEvents = [
-  {
-    id: '1',
-    title: 'Festival Budaya Nusantara',
-    images: ['https://via.placeholder.com/350x200?text=Festival+Budaya+Nusantara'],
-    description: 'Sebuah acara spektakuler yang menampilkan keragaman budaya Indonesia'
-  },
-  {
-    id: '2', 
-    title: 'Pameran Seni Tradisional',
-    images: ['https://via.placeholder.com/350x200?text=Pameran+Seni+Tradisional'],
-    description: 'Pameran karya seni dari berbagai daerah di Indonesia'
-  }
-];
+interface Event {
+  id: string;
+  name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  location_id: string;
+  is_kid_friendly: boolean;
+  views: number;
+}
 
 export default function EventScreen() {
   const router = useRouter();
-  const [events] = useState(dummyEvents);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    console.log("🔄 Memulai fetch events...");
+  
+    try {
+      const response = await axios.get<Event[]>('http://localhost:8181/events');
+  
+      console.log("✅ Response Status:", response.status);
+      console.log("✅ Response Data:", response.data);
+  
+      setEvents(response.data);
+      setLoading(false);
+    } catch (err: any) {
+      console.log("❌ Terjadi error saat fetch events");
+  
+      if (axios.isAxiosError(err)) {
+        console.error("🔴 Axios error:", err.message);
+        console.error("🔴 Response error:", err.response?.data);
+      } else {
+        console.error("🔴 Unknown error:", err);
+      }
+  
+      setError(err.message || "Terjadi kesalahan");
+      setLoading(false);
+    }
+  };
+  
   const handleCreateEvent = () => {
     router.push('/dashboard/addEvan');
   };
@@ -37,6 +65,22 @@ export default function EventScreen() {
   const handleEventDetail = (eventId: string) => {
     router.push(`/dashboard/event/${eventId}`);
   };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-[#F9EFE4] justify-center items-center">
+        <ActivityIndicator size="large" color="#4E7D79" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-[#F9EFE4] justify-center items-center">
+        <Text className="text-red-500">{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-[#F9EFE4]">
@@ -62,14 +106,15 @@ export default function EventScreen() {
             onPress={() => handleEventDetail(event.id)}
             className="mb-4 bg-white rounded-xl shadow-md"
           >
-            <Image 
-              source={{ uri: event.images[0] || 'https://via.placeholder.com/350x200' }}
-              className="w-full h-48 rounded-t-xl"
-              resizeMode="cover"
-            />
             <View className="p-4">
               <Text className="text-lg font-bold text-[#4E7D79]">
-                {event.title}
+                {event.name}
+              </Text>
+              <Text className="text-sm text-gray-600 mt-2">
+                {event.description}
+              </Text>
+              <Text className="text-sm text-gray-500 mt-1">
+                Tanggal: {new Date(event.start_date).toLocaleDateString()} - {new Date(event.end_date).toLocaleDateString()}
               </Text>
               <TouchableOpacity 
                 className="mt-2"

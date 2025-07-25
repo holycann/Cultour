@@ -46,6 +46,8 @@ export default function LoginScreen() {
       // Simpan token ke AsyncStorage
       if (data.session) {
         await AsyncStorage.setItem('authToken', data.session.access_token);
+
+        console.log("token:", data.session.access_token)
         
         // Set token ke header untuk API selanjutnya
         supabase.auth.setSession(data.session);

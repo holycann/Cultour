@@ -1,10 +1,10 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    SafeAreaView,
-    Text,
-    TouchableOpacity,
-    View
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 export default function DiscusionScreen() {

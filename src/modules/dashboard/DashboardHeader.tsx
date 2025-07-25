@@ -1,6 +1,6 @@
 // src/modules/dashboard/DashboardHeader.tsx
 import { Icon } from "@iconify/react";
-import { Image, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, TextInput, View } from "react-native";
 
 type DashboardHeaderProps = {
   onSearch: () => void;
@@ -41,11 +41,6 @@ export default function DashboardHeader({
         />
         <Icon icon="mdi:magnify" width={20} height={20} color="#636363" />
       </View>
-
-      {/* Notification */}
-      <TouchableOpacity onPress={onNotifPress} className="ml-2">
-        <Icon icon="mdi:bell" width={26} height={26} color="#222" />
-      </TouchableOpacity>
     </View>
   );
 }

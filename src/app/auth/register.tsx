@@ -1,5 +1,5 @@
 import { Icon } from "@iconify/react";
-import { createClient } from "@supabase/supabase-js";
+import axios from "axios";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -13,23 +13,20 @@ import {
   View
 } from "react-native";
 
-// Pastikan Anda menambahkan konfigurasi Supabase Anda di sini
-const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Ubah jika kamu testing di emulator Android:
+const BASE_URL = "http://localhost:8181"; // ganti ke 10.0.2.2:8181 jika emulator
 
 export default function RegisterScreen() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const router = useRouter();
+
   async function handleRegister() {
-    if (!name || !email || !password) {
+    if (!email || !password) {
       Alert.alert("Error", "Isi semua data!");
       return;
     }
@@ -38,22 +35,21 @@ export default function RegisterScreen() {
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const response = await axios.post(`${BASE_URL}/users`, {
         email,
         password,
-        options: {
-          data: {
-            name: name,
-          },
-        },
+        role: "user", // default role
       });
 
-      if (error) throw error;
-
-      Alert.alert("Register Success", "Silakan login untuk masuk komunitas.");
-      router.push("/auth/login");
+      if (response.status === 201 || response.status === 200) {
+        Alert.alert("Register Success", "Silakan login untuk masuk komunitas.");
+        router.push("/auth/login");
+      } else {
+        throw new Error("Registrasi gagal.");
+      }
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Registrasi gagal");
+      console.error("Register error:", err);
+      Alert.alert("Error", err.response?.data?.message || err.message || "Registrasi gagal");
       setError(err.message);
     } finally {
       setLoading(false);
@@ -65,11 +61,11 @@ export default function RegisterScreen() {
   };
 
   const openTermsAndConditions = () => {
-    Linking.openURL("https://cultour.holyycan.com/terms"); // Ganti dengan URL sebenarnya
+    Linking.openURL("https://cultour.holyycan.com/terms");
   };
 
   const openPrivacyPolicy = () => {
-    Linking.openURL("https://cultour.holyycan.com/privacy"); // Ganti dengan URL sebenarnya
+    Linking.openURL("https://cultour.holyycan.com/privacy");
   };
 
   const navigateToLogin = () => {
@@ -77,59 +73,43 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View 
-      className="flex-1" 
-      style={{ backgroundColor: '#F9EFE4' }}
-    >
-      <StatusBar 
-        backgroundColor="#F9EFE4" 
-        barStyle="dark-content" 
-      />
+    <View className="flex-1" style={{ backgroundColor: '#F9EFE4' }}>
+      <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
       <View className="flex-1 justify-center px-6">
         {/* Logo */}
         <View className="items-center mb-8">
-          <View 
+          <View
             className="w-32 h-32 rounded-full justify-center items-center mb-4"
-            style={{ 
+            style={{
               backgroundColor: 'white',
               shadowColor: "#000",
-              shadowOffset: {
-                width: 0,
-                height: 2,
-              },
+              shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.25,
               shadowRadius: 3.84,
               elevation: 5,
             }}
           >
-            <Image 
+            <Image
               source={require('../../assets/images/logoSplash.png')}
               className="w-24 h-24"
               resizeMode="contain"
             />
           </View>
-          
-          <Text 
-            className="text-3xl font-bold"
-            style={{ color: '#4E7D79' }}
-          >
+          <Text className="text-3xl font-bold" style={{ color: '#4E7D79' }}>
             Cultour
           </Text>
         </View>
 
-        {/* Sign Up */}
-        <Text 
-          className="text-2xl font-bold mb-6"
-          style={{ color: '#4E7D79' }}
-        >
+        {/* Title */}
+        <Text className="text-2xl font-bold mb-6" style={{ color: '#4E7D79' }}>
           Sign Up
         </Text>
 
         {/* Email Input */}
-        <View 
+        <View
           className="flex-row items-center mb-4 px-4 py-3 rounded-xl"
-          style={{ 
+          style={{
             backgroundColor: 'white',
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
@@ -151,9 +131,9 @@ export default function RegisterScreen() {
         </View>
 
         {/* Password Input */}
-        <View 
+        <View
           className="flex-row items-center mb-4 px-4 py-3 rounded-xl"
-          style={{ 
+          style={{
             backgroundColor: 'white',
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
@@ -173,30 +153,27 @@ export default function RegisterScreen() {
             style={{ color: '#4E7D79' }}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Icon 
-              icon={showPassword ? "mdi:eye-off-outline" : "mdi:eye-outline"} 
-              width={24} 
-              height={24} 
-              color="#4E7D79" 
+            <Icon
+              icon={showPassword ? "mdi:eye-off-outline" : "mdi:eye-outline"}
+              width={24}
+              height={24}
+              color="#4E7D79"
             />
           </TouchableOpacity>
         </View>
 
-        {/* Terms and Conditions */}
+        {/* Terms */}
         <View className="flex-row justify-center mb-6">
-          <Text 
-            className="text-center text-sm"
-            style={{ color: '#4E7D79' }}
-          >
+          <Text className="text-center text-sm" style={{ color: '#4E7D79' }}>
             By signing up, you&apos;ve agreed to our{" "}
-            <Text 
+            <Text
               onPress={openTermsAndConditions}
               style={{ color: '#EEC887', textDecorationLine: 'underline' }}
             >
               terms and conditions
             </Text>{" "}
             and{" "}
-            <Text 
+            <Text
               onPress={openPrivacyPolicy}
               style={{ color: '#EEC887', textDecorationLine: 'underline' }}
             >
@@ -205,56 +182,38 @@ export default function RegisterScreen() {
           </Text>
         </View>
 
-        {/* Continue Button */}
+        {/* Register Button */}
         <TouchableOpacity
           onPress={handleRegister}
           disabled={loading}
           className="mb-4 py-4 rounded-xl items-center"
-          style={{ 
+          style={{
             backgroundColor: '#EEC887',
-            opacity: loading ? 0.5 : 1
+            opacity: loading ? 0.5 : 1,
           }}
         >
-          <Text 
-            className="text-lg font-bold"
-            style={{ color: '#4E7D79' }}
-          >
+          <Text className="text-lg font-bold" style={{ color: '#4E7D79' }}>
             {loading ? "Signing up..." : "Continue"}
           </Text>
         </TouchableOpacity>
 
-        {/* Google Sign Up Button */}
+        {/* Google Sign Up */}
         <TouchableOpacity
           onPress={handleGoogleSignUp}
           className="py-4 rounded-xl items-center flex-row justify-center"
-          style={{ 
-            backgroundColor: '#EEC887',
-          }}
+          style={{ backgroundColor: '#EEC887' }}
         >
           <Icon icon="mdi:google" width={24} height={24} color="#4E7D79" />
-          <Text 
-            className="text-lg font-bold ml-2"
-            style={{ color: '#4E7D79' }}
-          >
+          <Text className="text-lg font-bold ml-2" style={{ color: '#4E7D79' }}>
             Continue with Google
           </Text>
         </TouchableOpacity>
 
         {/* Login Link */}
         <View className="flex-row justify-center mt-4">
-          <Text 
-            style={{ color: '#4E7D79' }}
-          >
-            Joined us before?{" "}
-          </Text>
+          <Text style={{ color: '#4E7D79' }}>Joined us before? </Text>
           <TouchableOpacity onPress={navigateToLogin}>
-            <Text 
-              style={{ 
-                color: '#EEC887', 
-                textDecorationLine: 'underline',
-                fontWeight: 'bold'
-              }}
-            >
+            <Text style={{ color: '#EEC887', textDecorationLine: 'underline', fontWeight: 'bold' }}>
               Login
             </Text>
           </TouchableOpacity>

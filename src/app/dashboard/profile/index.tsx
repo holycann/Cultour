@@ -1,24 +1,25 @@
 import { Icon } from "@iconify/react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import { useRouter } from "expo-router";
-import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Image,
   StatusBar,
   Text,
   TouchableOpacity,
   View
 } from "react-native";
-import { authService } from "../../../api/services/authService";
-import { userService } from "../../../api/services/userService";
 
-export default function ProfileScreen() {
+export default function ProfileIndexScreen() {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<{
-    name: string;
-    email: string;
-  } | null>(null);
+  const [profile, setProfile] = useState<null | {
+    avatar_url: string;
+    bio: string;
+    fullname: string;
+    user_id: string;
+  }>(null);
+  const [badge, setBadge] = useState<"guest" | "warlok">("guest");
 
   useEffect(() => {
     fetchUserProfile();
@@ -26,164 +27,84 @@ export default function ProfileScreen() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await userService.getCurrentProfile();
-      if (response.success && response.data) {
-        setUserProfile(response.data);
+      const token = await AsyncStorage.getItem("authToken");
+
+      if (!token) {
+        setBadge("guest");
+        return;
       }
-    } catch (error) {
-      console.error("Gagal mengambil profil:", error);
-    }
-  };
 
-  const handleEditProfile = () => {
-    router.push('/dashboard/profile/(tab)/edit'); // Ganti ke '/profile/(tab)/edit' jika file edit.tsx yang ingin dibuka
-  };
+      const res = await axios.get("http://localhost:8181/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  const handleBadges = () => {
-    router.push('/dashboard/profile/(tab)/badge'); // Pastikan ada file badges.tsx di folder tsb
-  };
-
-  const handleLogout = async () => {
-    try {
-      await authService.logout();
-      await SecureStore.deleteItemAsync('auth_token');
-      router.replace("/auth/login");
-    } catch (error) {
-      console.error("Gagal logout:", error);
-      Alert.alert("Error", "Gagal keluar dari akun");
+      if (res.data) {
+        setProfile(res.data);
+        setBadge("warlok");
+      }
+    } catch (err) {
+      console.error("Gagal mengambil profil:", err);
+      setBadge("guest");
     }
   };
 
   return (
-    <View 
-      className="flex-1" 
-      style={{ backgroundColor: '#F9EFE4' }}
-    >
-      <StatusBar 
-        backgroundColor="#F9EFE4" 
-        barStyle="dark-content" 
-      />
+    <View className="flex-1 bg-[#F9EFE4] px-6 pt-6">
+      <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
-      {/* Header */}
-      <View className="p-4">
-        <Text className="text-xl font-bold text-[#4E7D79] text-center">Profile</Text>
+      <Text className="text-xl font-bold text-[#4E7D79] text-center mb-6">
+        My Profile
+      </Text>
+
+      {/* Avatar */}
+      <View className="items-center mb-4">
+        <Image
+          source={
+            profile?.avatar_url
+              ? { uri: profile.avatar_url }
+              : require("../../../assets/images/eksproler.png")
+          }
+          className="w-32 h-32 rounded-full"
+          resizeMode="cover"
+        />
       </View>
 
-      <View className="flex-1 items-center px-6 pt-8">
-        {/* Foto Profil */}
-        <View 
-          className="w-40 h-40 rounded-full justify-center items-center mb-6"
-          style={{ 
-            backgroundColor: 'white',
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: 2,
-          }}
-        >
-          <Image 
-            source={require('../../../assets/images/logoSplash.png')}
-            className="w-32 h-32 rounded-full"
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* Informasi Pengguna */}
-        <Text className="text-xl font-bold text-[#4E7D79] mb-2">
-          {userProfile?.name || 'Penjelajah'}
+      {/* Info */}
+      <View className="items-center mb-4">
+        <Text className="text-lg font-bold text-[#4E7D79]">
+          {profile?.fullname || "Penjelajah"}
         </Text>
-        <Text className="text-[#4E7D79] mb-8">
-          {userProfile?.email || 'you@example.com'}
-        </Text>
-
-        {/* Menu Profil */}
-        <View className="w-full">
-          <TouchableOpacity 
-            onPress={handleEditProfile}
-            className="flex-row items-center justify-between bg-white rounded-xl px-4 py-4 mb-4"
-            style={{ 
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <View className="flex-row items-center">
-              <Icon 
-                icon="mdi:account-edit" 
-                width={24} 
-                height={24} 
-                color="#4E7D79" 
-              />
-              <Text className="ml-4 text-[#4E7D79]">Edit Profile</Text>
-            </View>
-            <Icon 
-              icon="mdi:chevron-right" 
-              width={24} 
-              height={24} 
-              color="#4E7D79" 
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            onPress={handleBadges}
-            className="flex-row items-center justify-between bg-white rounded-xl px-4 py-4 mb-4"
-            style={{ 
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <View className="flex-row items-center">
-              <Icon 
-                icon="mdi:trophy" 
-                width={24} 
-                height={24} 
-                color="#4E7D79" 
-              />
-              <Text className="ml-4 text-[#4E7D79]">Badge</Text>
-            </View>
-            <Icon 
-              icon="mdi:chevron-right" 
-              width={24} 
-              height={24} 
-              color="#4E7D79" 
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            onPress={handleLogout}
-            className="flex-row items-center justify-between bg-white rounded-xl px-4 py-4"
-            style={{ 
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <View className="flex-row items-center">
-              <Icon 
-                icon="mdi:logout" 
-                width={24} 
-                height={24} 
-                color="#4E7D79" 
-              />
-              <Text className="ml-4 text-[#4E7D79]">Logout</Text>
-            </View>
-            <Icon 
-              icon="mdi:chevron-right" 
-              width={24} 
-              height={24} 
-              color="#4E7D79" 
-            />
-          </TouchableOpacity>
-        </View>
+        <Text className="text-[#4E7D79] mb-2">{profile?.user_id || "-"}</Text>
+        <Text className="text-center text-[#4E7D79] italic">{profile?.bio || "Belum ada bio."}</Text>
       </View>
+
+      {/* Badge */}
+      <View className="items-center mt-4 mb-6">
+        <Text className="text-sm text-white px-4 py-1 rounded-full bg-[#4E7D79]">
+          {badge === "guest" ? "Guest" : "Warlok"}
+        </Text>
+      </View>
+
+      {/* Aksi */}
+      <TouchableOpacity
+        onPress={() => router.push("/dashboard/profile/(tab)/edit")}
+        className="bg-white px-4 py-4 rounded-xl flex-row justify-between items-center"
+        style={{
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+          elevation: 2,
+        }}
+      >
+        <View className="flex-row items-center">
+          <Icon icon="mdi:account-edit" width={24} height={24} color="#4E7D79" />
+          <Text className="ml-4 text-[#4E7D79]">Edit Profile</Text>
+        </View>
+        <Icon icon="mdi:chevron-right" width={24} height={24} color="#4E7D79" />
+      </TouchableOpacity>
     </View>
   );
 }

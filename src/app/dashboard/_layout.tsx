@@ -10,7 +10,6 @@ export default function DashboardLayout() {
   let active = "home";
   if (pathname.endsWith("/place")) active = "place";
   if (pathname.endsWith("/event")) active = "event";
-  if (pathname.endsWith("/forum")) active = "forum";
   if (pathname.endsWith("/profile")) active = "profile";
 
   // State search dan notif

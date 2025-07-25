@@ -8,18 +8,12 @@ type BottomNavBarProps = {
 
 const menus = [
   { key: "home", label: "Home", icon: "mdi:home", route: "/dashboard/home" },
-  { key: "place", label: "Place", icon: "mdi:apps", route: "/dashboard/place" }, // ganti jadi apps/grid
+  { key: "place", label: "Place", icon: "mdi:apps", route: "/dashboard/place" },
   {
     key: "event",
     label: "Event",
     icon: "mdi:calendar",
     route: "/dashboard/event",
-  },
-  {
-    key: "forum",
-    label: "Discussion",
-    icon: "mdi:chat-question-outline",
-    route: "/dashboard/forum",
   },
   {
     key: "profile",
