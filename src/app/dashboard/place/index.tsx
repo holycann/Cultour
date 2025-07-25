@@ -1,46 +1,73 @@
-import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from "react-native";
 
-const places = [
-  {
-    id: 1,
-    name: "Bandung",
-    region: "Jawa Barat",
-    image: require("../../../assets/images/logoHeader.png"),
-  },
-  {
-    id: 2,
-    name: "Bandung",
-    region: "Jawa Barat",
-    image: require("../../../assets/images/logoHeader.png"),
-  },
-  {
-    id: 3,
-    name: "Bandung",
-    region: "Jawa Barat",
-    image: require("../../../assets/images/logoHeader.png"),
-  },
-  {
-    id: 4,
-    name: "Bandung",
-    region: "Jawa Barat",
-    image: require("../../../assets/images/logoHeader.png"),
-  },
-  {
-    id: 5,
-    name: "Bandung",
-    region: "Jawa Barat",
-    image: require("../../../assets/images/logoHeader.png"),
-  },
-];
+interface Place {
+  id: string;
+  name: string;
+  province: string;
+}
+
+interface PlaceResponse {
+  success: boolean;
+  message: string;
+  metadata: {
+    pagination: {
+      total: number;
+      page: number;
+      per_page: number;
+      total_pages: number;
+      has_next_page: boolean;
+    }
+  };
+  data: Place[];
+}
 
 export default function PlaceScreen() {
-  function handlePress(place) {
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPlaces();
+  }, []);
+
+  const fetchPlaces = async () => {
+    try {
+      // Ganti URL dengan endpoint API yang sesuai
+      const response = await axios.get<PlaceResponse>('http://localhost:8181/cities/');
+      setPlaces(response.data.data);
+      setLoading(false);
+    } catch (err) {
+      console.log("Error:", err)
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
+      setLoading(false);
+    }
+  };
+
+  function handlePress(place: Place) {
     console.log("Clicked:", place);
     // Navigasi ke detail nanti di sini
   }
 
+  if (loading) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center">
+        <ActivityIndicator size="large" color="#4E7D79" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center">
+        <Text className="text-red-500">{error}</Text>
+      </View>
+    );
+  }
+
   return (
-    <View className="flex-1 bg-[#222] pt-3">
+    <View className="flex-1 bg-white pt-3">
       {/* Title */}
       <Text className="font-bold text-xl text-[#212121] ml-7 mb-3 mt-2">
         Place
@@ -48,7 +75,7 @@ export default function PlaceScreen() {
 
       <FlatList
         data={places}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -56,12 +83,6 @@ export default function PlaceScreen() {
             activeOpacity={0.8}
             className="flex-row items-center mx-5 mb-5"
           >
-            {/* Gambar Kiri */}
-            <Image
-              source={item.image}
-              className="w-[70px] h-[70px] rounded-xl bg-zinc-200 mr-[-22px] z-10 border-4 border-white"
-            />
-
             {/* Card Kanan */}
             <View className="flex-1 bg-[#EEC887] rounded-2xl flex-row items-center justify-between -ml-3 px-5 py-4 shadow-md">
               <View>
@@ -69,7 +90,7 @@ export default function PlaceScreen() {
                   {item.name}
                 </Text>
                 <Text className="text-[#222] opacity-70 text-sm">
-                  {item.region}
+                  {item.province}
                 </Text>
               </View>
               {/* Icon panah kanan */}

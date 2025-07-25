@@ -7,7 +7,7 @@ import {
     View
 } from "react-native";
 
-export default function ChatbotScreen() {
+export default function DiscusionScreen() {
   const router = useRouter();
   const [isChatStarted, setIsChatStarted] = useState(false);
 
@@ -37,7 +37,7 @@ export default function ChatbotScreen() {
             <Text className="text-2xl font-bold text-[#4E7D79] mb-4 text-center">
               Cultour
             </Text>
-            <Text className="text-base text-[#4E7D79] mb-8 text-center">
+            <Text className="text-base text-[#4E    7D79] mb-8 text-center">
               Smart Guide to Cultural Discovery
             </Text>
 
