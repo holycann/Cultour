@@ -11,7 +11,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 // Pastikan Anda menambahkan konfigurasi Supabase Anda di sini
@@ -45,10 +45,10 @@ export default function LoginScreen() {
 
       // Simpan token ke AsyncStorage
       if (data.session) {
-        await AsyncStorage.setItem('authToken', data.session.access_token);
+        await AsyncStorage.setItem("authToken", data.session.access_token);
 
-        console.log("token:", data.session.access_token)
-        
+        console.log("token:", data.session.access_token);
+
         // Set token ke header untuk API selanjutnya
         supabase.auth.setSession(data.session);
 
@@ -75,22 +75,16 @@ export default function LoginScreen() {
   };
 
   return (
-    <View 
-      className="flex-1" 
-      style={{ backgroundColor: '#F9EFE4' }}
-    >
-      <StatusBar 
-        backgroundColor="#F9EFE4" 
-        barStyle="dark-content" 
-      />
+    <View className="flex-1" style={{ backgroundColor: "#F9EFE4" }}>
+      <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
       <View className="flex-1 justify-center px-6">
         {/* Logo */}
         <View className="items-center mb-8">
-          <View 
+          <View
             className="w-32 h-32 rounded-full justify-center items-center mb-4"
-            style={{ 
-              backgroundColor: 'white',
+            style={{
+              backgroundColor: "white",
               shadowColor: "#000",
               shadowOffset: {
                 width: 0,
@@ -101,34 +95,28 @@ export default function LoginScreen() {
               elevation: 5,
             }}
           >
-            <Image 
-              source={require('../../assets/images/logoSplash.png')}
+            <Image
+              source={require("../../assets/images/logoSplash.png")}
               className="w-24 h-24"
               resizeMode="contain"
             />
           </View>
-          
-          <Text 
-            className="text-3xl font-bold"
-            style={{ color: '#4E7D79' }}
-          >
+
+          <Text className="text-3xl font-bold" style={{ color: "#4E7D79" }}>
             Cultour
           </Text>
         </View>
 
         {/* Login */}
-        <Text 
-          className="text-2xl font-bold mb-6"
-          style={{ color: '#4E7D79' }}
-        >
+        <Text className="text-2xl font-bold mb-6" style={{ color: "#4E7D79" }}>
           Login
         </Text>
 
         {/* Email Input */}
-        <View 
+        <View
           className="flex-row items-center mb-4 px-4 py-3 rounded-xl"
-          style={{ 
-            backgroundColor: 'white',
+          style={{
+            backgroundColor: "white",
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.1,
@@ -136,7 +124,12 @@ export default function LoginScreen() {
             elevation: 2,
           }}
         >
-          <Icon icon="mdi:email-outline" width={24} height={24} color="#4E7D79" />
+          <Icon
+            icon="mdi:email-outline"
+            width={24}
+            height={24}
+            color="#4E7D79"
+          />
           <TextInput
             placeholder="Email"
             placeholderTextColor="#4E7D79"
@@ -144,15 +137,15 @@ export default function LoginScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             className="flex-1 ml-3 text-base"
-            style={{ color: '#4E7D79' }}
+            style={{ color: "#4E7D79" }}
           />
         </View>
 
         {/* Password Input */}
-        <View 
+        <View
           className="flex-row items-center mb-4 px-4 py-3 rounded-xl"
-          style={{ 
-            backgroundColor: 'white',
+          style={{
+            backgroundColor: "white",
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.1,
@@ -160,7 +153,12 @@ export default function LoginScreen() {
             elevation: 2,
           }}
         >
-          <Icon icon="mdi:lock-outline" width={24} height={24} color="#4E7D79" />
+          <Icon
+            icon="mdi:lock-outline"
+            width={24}
+            height={24}
+            color="#4E7D79"
+          />
           <TextInput
             placeholder="Password"
             placeholderTextColor="#4E7D79"
@@ -168,35 +166,32 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             className="flex-1 ml-3 text-base"
-            style={{ color: '#4E7D79' }}
+            style={{ color: "#4E7D79" }}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Icon 
-              icon={showPassword ? "mdi:eye-off-outline" : "mdi:eye-outline"} 
-              width={24} 
-              height={24} 
-              color="#4E7D79" 
+            <Icon
+              icon={showPassword ? "mdi:eye-off-outline" : "mdi:eye-outline"}
+              width={24}
+              height={24}
+              color="#4E7D79"
             />
           </TouchableOpacity>
         </View>
 
         {/* Terms and Conditions */}
         <View className="flex-row justify-center mb-6">
-          <Text 
-            className="text-center text-sm"
-            style={{ color: '#4E7D79' }}
-          >
+          <Text className="text-center text-sm" style={{ color: "#4E7D79" }}>
             By signing up, you've agreed to our{" "}
-            <Text 
+            <Text
               onPress={openTermsAndConditions}
-              style={{ color: '#EEC887', textDecorationLine: 'underline' }}
+              style={{ color: "#EEC887", textDecorationLine: "underline" }}
             >
               terms and conditions
             </Text>{" "}
             and{" "}
-            <Text 
+            <Text
               onPress={openPrivacyPolicy}
-              style={{ color: '#EEC887', textDecorationLine: 'underline' }}
+              style={{ color: "#EEC887", textDecorationLine: "underline" }}
             >
               Privacy Policy
             </Text>
@@ -208,15 +203,12 @@ export default function LoginScreen() {
           onPress={handleLogin}
           disabled={loading}
           className="mb-4 py-4 rounded-xl items-center"
-          style={{ 
-            backgroundColor: '#EEC887',
-            opacity: loading ? 0.5 : 1
+          style={{
+            backgroundColor: "#EEC887",
+            opacity: loading ? 0.5 : 1,
           }}
         >
-          <Text 
-            className="text-lg font-bold"
-            style={{ color: '#4E7D79' }}
-          >
+          <Text className="text-lg font-bold" style={{ color: "#4E7D79" }}>
             {loading ? "Logging in..." : "Continue"}
           </Text>
         </TouchableOpacity>
@@ -225,15 +217,12 @@ export default function LoginScreen() {
         <TouchableOpacity
           onPress={handleGoogleLogin}
           className="py-4 rounded-xl items-center flex-row justify-center"
-          style={{ 
-            backgroundColor: '#EEC887',
+          style={{
+            backgroundColor: "#EEC887",
           }}
         >
           <Icon icon="mdi:google" width={24} height={24} color="#4E7D79" />
-          <Text 
-            className="text-lg font-bold ml-2"
-            style={{ color: '#4E7D79' }}
-          >
+          <Text className="text-lg font-bold ml-2" style={{ color: "#4E7D79" }}>
             Continue with Google
           </Text>
         </TouchableOpacity>

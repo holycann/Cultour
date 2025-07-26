@@ -1,70 +1,59 @@
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
-import {
-  Image,
-  StatusBar,
-  Text,
-  View
-} from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, StatusBar, View } from "react-native";
 
 export default function SplashScreen() {
   const router = useRouter();
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Simulasi proses loading atau autentikasi
-    const timer = setTimeout(() => {
-      // Navigasi ke halaman selanjutnya (misalnya dashboard atau login)
-      router.replace("/dashboard/home");
-    }, 2000); // Tampilkan splash screen selama 2 detik
+    // Fade-in logo
+    Animated.timing(logoOpacity, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start(() => {
+      // Setelah logo muncul, fade-in teks
+      Animated.timing(textOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    });
 
-    // Membersihkan timer jika komponen di-unmount
+    // Navigasi setelah 2 detik
+    const timer = setTimeout(() => {
+      router.replace("/dashboard/home");
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <View 
-      className="flex-1 justify-center items-center" 
-      style={{ 
-        backgroundColor: '#F9EFE4' 
-      }}
+    <View
+      className="flex-1 justify-center items-center"
+      style={{ backgroundColor: "#EEC887" }}
     >
-      <StatusBar 
-        backgroundColor="#F9EFE4" 
-        barStyle="dark-content" 
-      />
-      
+      <StatusBar backgroundColor="#EEC887" barStyle="dark-content" />
       <View className="items-center">
-        <View 
-          className="w-48 h-48 rounded-full justify-center items-center"
-          style={{ 
-            backgroundColor: 'white',
-            shadowColor: "#000",
-            shadowOffset: {
-              width: 0,
-              height: 2,
-            },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-            elevation: 5,
+        <Animated.Image
+          source={require("../assets/images/logoHeader.png")}
+          style={{
+            opacity: logoOpacity,
+            width: 250,
+            height: 250,
+            resizeMode: "contain",
           }}
-      >
-          <View className="w-32 h-32">
-            <Image 
-              source={{ 
-                uri: '../../assets/images/logoSplash.png' 
-              }}
-              className="w-full h-full"
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-        
-        <Text 
-          className="mt-6 text-3xl font-bold"
-          style={{ color: '#4E7D79' }}
-        >
-          Cultour
-        </Text>
+        />
+        <Animated.Text
+          style={{
+            marginTop: 24,
+            fontSize: 30,
+            fontWeight: "bold",
+            color: "#4E7D79",
+            opacity: textOpacity,
+          }}
+        ></Animated.Text>
       </View>
     </View>
   );

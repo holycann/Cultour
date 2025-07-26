@@ -21,7 +21,7 @@ export default function DashboardLayout() {
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <DashboardHeader
-        logoSource={require("../../../assets/images/logoHeader.png")}
+        logoSource={require("../../assets/images/logoHeader.png")}
         searchValue={search}
         setSearchValue={setSearch}
         onSearch={() => {
