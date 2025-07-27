@@ -8,13 +8,13 @@ import { Icon } from "@iconify/react";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function RegisterPage() {
@@ -22,36 +22,36 @@ export default function RegisterPage() {
   const { register, loginWithOAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [fullname, setFullname] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
-    displayName?: string;
+    fullname?: string;
   }>({});
 
   const validateForm = () => {
     const validationRules = {
-      email: [
-        validators.required("Email is required"), 
-        validators.email()
-      ],
+      email: [validators.required("Email is required"), validators.email()],
       password: [
         validators.required("Password is required"),
         validators.minLength(6, "Password must be at least 6 characters"),
       ],
       displayName: [
         validators.required("Display name is required"),
-        validators.minLength(2, "Display name must be at least 2 characters")
-      ]
+        validators.minLength(2, "Display name must be at least 2 characters"),
+      ],
     };
 
-    const formErrors = validate({ 
-      email, 
-      password, 
-      displayName 
-    }, validationRules);
+    const formErrors = validate(
+      {
+        email,
+        password,
+        fullname,
+      },
+      validationRules
+    );
     setErrors(formErrors);
     return !hasErrors(formErrors);
   };
@@ -65,12 +65,12 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       logger.log("RegisterPage", "Registration Attempt", { email });
-      const result = await register({ 
-        email, 
-        password, 
-        display_name: displayName 
+      const result = await register({
+        email,
+        password,
+        fullname: fullname,
       });
-      
+
       if (result) {
         logger.log("RegisterPage", "Registration Successful");
         router.replace("/(tabs)/home");
@@ -81,19 +81,18 @@ export default function RegisterPage() {
           "Unable to create account"
         );
         Alert.alert(
-          "Registration Failed", 
+          "Registration Failed",
           "Unable to create account. Please try again."
         );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : "An unexpected error occurred";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
+
       logger.error("RegisterPage", "Registration Error", errorMessage);
-      
+
       Alert.alert(
-        "Registration Error", 
+        "Registration Error",
         errorMessage || "Unable to complete registration"
       );
     } finally {
@@ -109,13 +108,13 @@ export default function RegisterPage() {
   const handleGoogleSignUp = async () => {
     try {
       logger.log("RegisterPage", "Google Registration Attempt");
-      await loginWithOAuth('google');
+      await loginWithOAuth("google");
     } catch (error) {
-      const errorMessage = 
-        error instanceof Error 
-          ? error.message 
+      const errorMessage =
+        error instanceof Error
+          ? error.message
           : "Gagal melakukan registrasi dengan Google";
-      
+
       Alert.alert("Error", errorMessage);
       logger.error("RegisterPage", "Google Registration Error", errorMessage);
     }
@@ -130,7 +129,7 @@ export default function RegisterPage() {
         {/* Logo Section */}
         <View className="items-center">
           <Image
-            source={require("@/assets/images/logoSplash.png")}
+            source={require("@/assets/images/splash.png")}
             style={{ width: 263, height: 263 }}
             resizeMode="contain"
           />
@@ -158,19 +157,21 @@ export default function RegisterPage() {
               className="mr-3"
             />
             <TextInput
-              value={displayName}
+              value={fullname}
               onChangeText={(text) => {
-                setDisplayName(text);
-                if (errors.displayName) {
-                  setErrors((prev) => ({ ...prev, displayName: undefined }));
+                setFullname(text);
+                if (errors.fullname) {
+                  setErrors((prev) => ({ ...prev, fullname: undefined }));
                 }
               }}
               placeholder="Enter your display name"
               className="flex-1 text-base text-[#1A1A1A]"
             />
           </View>
-          {errors.displayName && (
-            <Text className="text-red-500 text-xs mt-1">{errors.displayName}</Text>
+          {errors.fullname && (
+            <Text className="text-red-500 text-xs mt-1">
+              {errors.fullname}
+            </Text>
           )}
         </View>
 

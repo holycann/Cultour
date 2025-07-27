@@ -6,13 +6,13 @@ import { Icon } from "@iconify/react";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function LoginPage() {
@@ -64,7 +64,7 @@ export default function LoginPage() {
         {/* Logo */}
         <View className="items-center mb-12">
           <Image
-            source={require("@/assets/images/logoSplash.png")}
+            source={require("@/assets/images/splash.png")}
             style={{ width: 263, height: 263 }}
             resizeMode="contain"
           />
