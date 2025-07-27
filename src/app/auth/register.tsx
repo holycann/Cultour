@@ -1,224 +1,285 @@
+// src/app/auth/register.tsx
+import Button from "@/components/atoms/Button";
+import { Typography } from "@/constants/Typography";
+import { useAuth } from "@/hooks/useAuth";
+import { logger } from "@/utils/logger";
+import { hasErrors, validate, validators } from "@/utils/validation";
 import { Icon } from "@iconify/react";
-import axios from "axios";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Image,
-  Linking,
-  StatusBar,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Image,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
-// Ubah jika kamu testing di emulator Android:
-const BASE_URL = "http://localhost:8181"; // ganti ke 10.0.2.2:8181 jika emulator
-
-export default function RegisterScreen() {
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+export default function RegisterPage() {
   const router = useRouter();
+  const { register, loginWithOAuth } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    displayName?: string;
+  }>({});
 
-  async function handleRegister() {
-    if (!email || !password) {
-      Alert.alert("Error", "Isi semua data!");
+  const validateForm = () => {
+    const validationRules = {
+      email: [
+        validators.required("Email is required"), 
+        validators.email()
+      ],
+      password: [
+        validators.required("Password is required"),
+        validators.minLength(6, "Password must be at least 6 characters"),
+      ],
+      displayName: [
+        validators.required("Display name is required"),
+        validators.minLength(2, "Display name must be at least 2 characters")
+      ]
+    };
+
+    const formErrors = validate({ 
+      email, 
+      password, 
+      displayName 
+    }, validationRules);
+    setErrors(formErrors);
+    return !hasErrors(formErrors);
+  };
+
+  const handleContinue = async () => {
+    // Validate form
+    if (!validateForm()) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
+    setIsLoading(true);
     try {
-      const response = await axios.post(`${BASE_URL}/users`, {
-        email,
-        password,
-        role: "user", // default role
+      logger.log("RegisterPage", "Registration Attempt", { email });
+      const result = await register({ 
+        email, 
+        password, 
+        display_name: displayName 
       });
-
-      if (response.status === 201 || response.status === 200) {
-        Alert.alert("Register Success", "Silakan login untuk masuk komunitas.");
-        router.push("/auth/login");
+      
+      if (result) {
+        logger.log("RegisterPage", "Registration Successful");
+        router.replace("/(tabs)/home");
       } else {
-        throw new Error("Registrasi gagal.");
+        logger.error(
+          "RegisterPage",
+          "Registration Failed",
+          "Unable to create account"
+        );
+        Alert.alert(
+          "Registration Failed", 
+          "Unable to create account. Please try again."
+        );
       }
-    } catch (err: any) {
-      console.error("Register error:", err);
-      Alert.alert("Error", err.response?.data?.message || err.message || "Registrasi gagal");
-      setError(err.message);
+    } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "An unexpected error occurred";
+      
+      logger.error("RegisterPage", "Registration Error", errorMessage);
+      
+      Alert.alert(
+        "Registration Error", 
+        errorMessage || "Unable to complete registration"
+      );
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }
-
-  const handleGoogleSignUp = () => {
-    Alert.alert("Google Sign Up", "Fitur sign up Google akan segera hadir.");
   };
 
-  const openTermsAndConditions = () => {
-    Linking.openURL("https://cultour.holyycan.com/terms");
-  };
-
-  const openPrivacyPolicy = () => {
-    Linking.openURL("https://cultour.holyycan.com/privacy");
-  };
-
-  const navigateToLogin = () => {
+  const handleLogin = () => {
+    logger.log("RegisterPage", "Navigate to Login");
     router.push("/auth/login");
   };
 
-  return (
-    <View className="flex-1" style={{ backgroundColor: '#F9EFE4' }}>
-      <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
+  const handleGoogleSignUp = async () => {
+    try {
+      logger.log("RegisterPage", "Google Registration Attempt");
+      await loginWithOAuth('google');
+    } catch (error) {
+      const errorMessage = 
+        error instanceof Error 
+          ? error.message 
+          : "Gagal melakukan registrasi dengan Google";
+      
+      Alert.alert("Error", errorMessage);
+      logger.error("RegisterPage", "Google Registration Error", errorMessage);
+    }
+  };
 
-      <View className="flex-1 justify-center px-6">
-        {/* Logo */}
-        <View className="items-center mb-8">
-          <View
-            className="w-32 h-32 rounded-full justify-center items-center mb-4"
-            style={{
-              backgroundColor: 'white',
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
-              elevation: 5,
-            }}
-          >
-            <Image
-              source={require('../../assets/images/logoSplash.png')}
-              className="w-24 h-24"
-              resizeMode="contain"
-            />
-          </View>
-          <Text className="text-3xl font-bold" style={{ color: '#4E7D79' }}>
-            Cultour
-          </Text>
+  return (
+    <ScrollView
+      className="flex-1 bg-[#F8F5ED] px-6"
+      contentContainerStyle={{ flexGrow: 1 }}
+    >
+      <View className="flex-1 justify-center">
+        {/* Logo Section */}
+        <View className="items-center">
+          <Image
+            source={require("@/assets/images/logoSplash.png")}
+            style={{ width: 263, height: 263 }}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Title */}
-        <Text className="text-2xl font-bold mb-6" style={{ color: '#4E7D79' }}>
+        <Text
+          className="mb-8 text-[#1A1A1A]"
+          style={[Typography.styles.title, { textAlign: "left" }]}
+        >
           Sign Up
         </Text>
 
+        {/* Display Name Input */}
+        <View className="mb-6">
+          <Text className="mb-2 text-[#1A1A1A]" style={Typography.styles.body}>
+            Display Name
+          </Text>
+          <View className="flex-row items-center border-b border-[#E0E0E0] py-3">
+            <Icon
+              icon="mdi:account"
+              width={20}
+              height={20}
+              color="#666"
+              className="mr-3"
+            />
+            <TextInput
+              value={displayName}
+              onChangeText={(text) => {
+                setDisplayName(text);
+                if (errors.displayName) {
+                  setErrors((prev) => ({ ...prev, displayName: undefined }));
+                }
+              }}
+              placeholder="Enter your display name"
+              className="flex-1 text-base text-[#1A1A1A]"
+            />
+          </View>
+          {errors.displayName && (
+            <Text className="text-red-500 text-xs mt-1">{errors.displayName}</Text>
+          )}
+        </View>
+
         {/* Email Input */}
-        <View
-          className="flex-row items-center mb-4 px-4 py-3 rounded-xl"
-          style={{
-            backgroundColor: 'white',
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: 2,
-          }}
-        >
-          <Icon icon="mdi:email-outline" width={24} height={24} color="#4E7D79" />
-          <TextInput
-            placeholder="Email"
-            placeholderTextColor="#4E7D79"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            className="flex-1 ml-3 text-base"
-            style={{ color: '#4E7D79' }}
-          />
+        <View className="mb-6">
+          <Text className="mb-2 text-[#1A1A1A]" style={Typography.styles.body}>
+            Email
+          </Text>
+          <View className="flex-row items-center border-b border-[#E0E0E0] py-3">
+            <Icon
+              icon="mdi:at"
+              width={20}
+              height={20}
+              color="#666"
+              className="mr-3"
+            />
+            <TextInput
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (errors.email) {
+                  setErrors((prev) => ({ ...prev, email: undefined }));
+                }
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholder="Enter your email"
+              className="flex-1 text-base text-[#1A1A1A]"
+            />
+          </View>
+          {errors.email && (
+            <Text className="text-red-500 text-xs mt-1">{errors.email}</Text>
+          )}
         </View>
 
         {/* Password Input */}
-        <View
-          className="flex-row items-center mb-4 px-4 py-3 rounded-xl"
-          style={{
-            backgroundColor: 'white',
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: 2,
-          }}
-        >
-          <Icon icon="mdi:lock-outline" width={24} height={24} color="#4E7D79" />
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor="#4E7D79"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            className="flex-1 ml-3 text-base"
-            style={{ color: '#4E7D79' }}
-          />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+        <View className="mb-8">
+          <Text className="mb-2 text-[#1A1A1A]" style={Typography.styles.body}>
+            Password
+          </Text>
+          <View className="flex-row items-center border-b border-[#E0E0E0] py-3">
             <Icon
-              icon={showPassword ? "mdi:eye-off-outline" : "mdi:eye-outline"}
-              width={24}
-              height={24}
-              color="#4E7D79"
+              icon="mdi:lock"
+              width={20}
+              height={20}
+              color="#666"
+              className="mr-3"
             />
-          </TouchableOpacity>
+            <TextInput
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (errors.password) {
+                  setErrors((prev) => ({ ...prev, password: undefined }));
+                }
+              }}
+              secureTextEntry={!showPassword}
+              placeholder="Enter your password"
+              className="flex-1 text-base text-[#1A1A1A]"
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Icon
+                icon={showPassword ? "mdi:eye-off" : "mdi:eye"}
+                width={20}
+                height={20}
+                color="#666"
+              />
+            </TouchableOpacity>
+          </View>
+          {errors.password && (
+            <Text className="text-red-500 text-xs mt-1">{errors.password}</Text>
+          )}
         </View>
 
-        {/* Terms */}
-        <View className="flex-row justify-center mb-6">
-          <Text className="text-center text-sm" style={{ color: '#4E7D79' }}>
-            By signing up, you&apos;ve agreed to our{" "}
-            <Text
-              onPress={openTermsAndConditions}
-              style={{ color: '#EEC887', textDecorationLine: 'underline' }}
-            >
-              terms and conditions
-            </Text>{" "}
-            and{" "}
-            <Text
-              onPress={openPrivacyPolicy}
-              style={{ color: '#EEC887', textDecorationLine: 'underline' }}
-            >
-              Privacy Policy
-            </Text>
-          </Text>
-        </View>
-
-        {/* Register Button */}
-        <TouchableOpacity
-          onPress={handleRegister}
-          disabled={loading}
-          className="mb-4 py-4 rounded-xl items-center"
-          style={{
-            backgroundColor: '#EEC887',
-            opacity: loading ? 0.5 : 1,
-          }}
+        {/* Disclaimer */}
+        <Text
+          className="text-[#666] text-sm mb-8 leading-5"
+          style={Typography.styles.body}
         >
-          <Text className="text-lg font-bold" style={{ color: '#4E7D79' }}>
-            {loading ? "Signing up..." : "Continue"}
-          </Text>
-        </TouchableOpacity>
+          By signing up, you&apos;ve agree to our{" "}
+          <Text className="text-blue-700">terms and conditions</Text> and{" "}
+          <Text className="text-blue-700">Privacy Policy</Text>.
+        </Text>
 
-        {/* Google Sign Up */}
-        <TouchableOpacity
+        {/* Buttons */}
+        <Button
+          label="Continue"
+          onPress={handleContinue}
+          className="w-[197px] h-[32px] mb-4 self-center"
+          disabled={isLoading}
+        />
+        <Button
+          label="Continue with Google"
           onPress={handleGoogleSignUp}
-          className="py-4 rounded-xl items-center flex-row justify-center"
-          style={{ backgroundColor: '#EEC887' }}
-        >
-          <Icon icon="mdi:google" width={24} height={24} color="#4E7D79" />
-          <Text className="text-lg font-bold ml-2" style={{ color: '#4E7D79' }}>
-            Continue with Google
-          </Text>
-        </TouchableOpacity>
+          className="w-[197px] h-[32px] mb-4 self-center"
+          variant="secondary"
+          disabled={isLoading}
+        />
 
         {/* Login Link */}
-        <View className="flex-row justify-center mt-4">
-          <Text style={{ color: '#4E7D79' }}>Joined us before? </Text>
-          <TouchableOpacity onPress={navigateToLogin}>
-            <Text style={{ color: '#EEC887', textDecorationLine: 'underline', fontWeight: 'bold' }}>
+        <View className="items-center">
+          <Text className="text-[#666] text-sm">
+            Joined us before?{" "}
+            <Text className="text-blue-700" onPress={handleLogin}>
               Login
             </Text>
-          </TouchableOpacity>
+          </Text>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
