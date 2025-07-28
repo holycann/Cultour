@@ -1,3 +1,4 @@
+import DetailHeader from "@/app/components/DetailHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +7,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Image,
+  ScrollView,
   StatusBar,
   Text,
   TextInput,
@@ -30,10 +32,6 @@ export default function EditProfileScreen() {
     }
   }, [profile]);
 
-  const handleGoBack = () => {
-    router.back();
-  };
-
   const pickProfileImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
@@ -45,7 +43,6 @@ export default function EditProfileScreen() {
     if (!result.canceled) {
       const selectedImage = result.assets[0];
 
-      // Upload the image
       try {
         const success = await uploadAvatar({
           uri: selectedImage.uri,
@@ -75,48 +72,35 @@ export default function EditProfileScreen() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || error) {
     return (
-      <View
-        className="flex-1 justify-center items-center"
-        style={{ backgroundColor: "#F9EFE4" }}
-      >
-        <Text className="text-[#4E7D79]">Loading profile...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View
-        className="flex-1 justify-center items-center"
-        style={{ backgroundColor: "#F9EFE4" }}
-      >
-        <Text className="text-red-500">Error: {error}</Text>
-        <TouchableOpacity onPress={() => {}} className="mt-4">
-          <Text className="text-[#4E7D79]">Try Again</Text>
-        </TouchableOpacity>
+      <View className="flex-1 justify-center items-center bg-[#F9EFE4]">
+        <Text
+          className={`text-center ${error ? "text-red-500" : "text-[#4E7D79]"}`}
+        >
+          {error ? `Error: ${error}` : "Loading profile..."}
+        </Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: "#F9EFE4" }}>
+    <View className="flex-1 bg-[#EEC887]">
       <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
-      {/* Header */}
-      <View className="flex-row items-center p-4">
-        <TouchableOpacity onPress={handleGoBack} className="mr-4">
-          <Text className="text-[#4E7D79] text-lg">{"<"}</Text>
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-[#4E7D79]">Edit Profile</Text>
-      </View>
+      {/* Custom Header */}
+      <DetailHeader title="Edit Profile" />
 
-      <View className="flex-1 items-center px-6 pt-8">
-        {/* Avatar */}
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+        }}
+        className="bg-white rounded-t-3xl px-6 pt-8"
+      >
+        {/* Avatar Picker */}
         <TouchableOpacity
           onPress={pickProfileImage}
-          className="w-40 h-40 rounded-full justify-center items-center mb-6"
+          className="w-32 h-32 rounded-full justify-center items-center self-center mb-6"
           style={shadowStyle}
         >
           {profileImage ? (
@@ -128,7 +112,7 @@ export default function EditProfileScreen() {
           ) : (
             <Image
               source={require("@/assets/images/logo.png")}
-              className="w-32 h-32 rounded-full"
+              className="w-28 h-28 rounded-full"
               resizeMode="contain"
             />
           )}
@@ -137,57 +121,54 @@ export default function EditProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Fullname */}
+        {/* Full Name */}
         <View className="w-full mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Full Name</Text>
-          <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
-            <TextInput
-              placeholder="Nama lengkap"
-              placeholderTextColor="#4E7D79"
-              value={fullname}
-              onChangeText={setFullname}
-              className="text-[#4E7D79]"
-            />
-          </View>
+          <Text className="mb-2 text-[#1E1E1E] font-semibold">Full Name</Text>
+          <TextInput
+            placeholder="Nama lengkap"
+            placeholderTextColor="#4E7D79"
+            value={fullname}
+            onChangeText={setFullname}
+            className="bg-white rounded-xl px-4 py-3 text-[#1E1E1E]"
+            style={shadowStyle}
+          />
         </View>
 
         {/* Email */}
         <View className="w-full mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Email</Text>
-          <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor="#4E7D79"
-              value={user?.email || ""}
-              editable={false}
-              className="text-[#4E7D79] opacity-50"
-            />
-          </View>
+          <Text className="mb-2 text-[#1E1E1E] font-semibold">Email</Text>
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor="#4E7D79"
+            value={user?.email || ""}
+            editable={false}
+            className="bg-white rounded-xl px-4 py-3 text-[#1E1E1E] opacity-50"
+            style={shadowStyle}
+          />
         </View>
 
         {/* Bio */}
-        <View className="w-full mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Bio</Text>
-          <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
-            <TextInput
-              placeholder="Bio"
-              placeholderTextColor="#4E7D79"
-              value={bio}
-              onChangeText={setBio}
-              multiline
-              className="text-[#4E7D79]"
-            />
-          </View>
+        <View className="w-full mb-6">
+          <Text className="mb-2 text-[#1E1E1E] font-semibold">Bio</Text>
+          <TextInput
+            placeholder="Bio"
+            placeholderTextColor="#4E7D79"
+            value={bio}
+            onChangeText={setBio}
+            multiline
+            className="bg-white rounded-xl px-4 py-3 text-[#1E1E1E]"
+            style={shadowStyle}
+          />
         </View>
 
         {/* Save Button */}
         <TouchableOpacity
           onPress={handleSave}
-          className="bg-[#EEC887] rounded-xl py-4 items-center w-full mt-6"
+          className="bg-[#EEC887] rounded-2xl py-4 items-center w-full mb-10"
         >
           <Text className="text-[#4E7D79] font-bold text-lg">Save</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -195,7 +176,7 @@ export default function EditProfileScreen() {
 const shadowStyle = {
   shadowColor: "#000",
   shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 2,
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
   elevation: 2,
 };

@@ -1,4 +1,5 @@
-import { useUser } from "@/hooks/useUser"; // Added useUser hook
+import DetailHeader from "@/app/components/DetailHeader";
+import { useUser } from "@/hooks/useUser";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -15,16 +16,12 @@ import {
 
 export default function IdentityVerificationScreen() {
   const router = useRouter();
-  const { profile, updateProfile } = useUser(); // Changed user to profile
-  const [fullName, setFullName] = useState(profile?.fullname || ""); // Pre-fill with profile's name if available
+  const { profile, updateProfile } = useUser();
+  const [fullName, setFullName] = useState(profile?.fullname || "");
   const [idDocument, setIdDocument] = useState<string | null>(null);
   const [isConfirmedIdentity, setIsConfirmedIdentity] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
   const [isUnderstandMisleading, setIsUnderstandMisleading] = useState(false);
-
-  const handleGoBack = () => {
-    router.back();
-  };
 
   const pickIdDocument = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -40,7 +37,6 @@ export default function IdentityVerificationScreen() {
   };
 
   const handleSave = async () => {
-    // Validasi input
     if (!fullName) {
       Alert.alert("Error", "Harap masukkan nama lengkap");
       return;
@@ -67,13 +63,11 @@ export default function IdentityVerificationScreen() {
     }
 
     try {
-      // Update profile with verification details
       await updateProfile({
         fullname: fullName,
         identity_image_url: idDocument,
       });
 
-      // Jika semua validasi lolos
       Alert.alert("Sukses", "Verifikasi identitas berhasil", [
         {
           text: "OK",
@@ -94,51 +88,45 @@ export default function IdentityVerificationScreen() {
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: "#F9EFE4" }}>
-      {/* Header */}
-      <View className="flex-row items-center p-4 justify-between">
-        <TouchableOpacity onPress={handleGoBack} className="mr-4">
-          <Text className="text-[#4E7D79] text-lg">{"<"}</Text>
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-[#4E7D79] flex-1 text-center">
-          Identity Verification
-        </Text>
-        <View className="w-6"></View>
-      </View>
+    <View className="flex-1 bg-[#EEC887]">
+      {/* Header dengan lekukan */}
+      <DetailHeader title="Identity Verification" />
 
       <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 20,
-        }}
+        className="bg-white rounded-t-3xl px-6 pt-6"
+        contentContainerStyle={{ paddingBottom: 30 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* Deskripsi */}
         <Text className="text-[#4E7D79] mb-4 text-sm">
           To validate the event creator as a verified local by submitting a form
-          of identity, You can upload a valid form of identification such as a
+          of identity, you can upload a valid form of identification such as a
           National ID (KTP), Drivers License (SIM), or Passport.
         </Text>
 
         {/* Nama Lengkap */}
         <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Full Name</Text>
+          <Text className="mb-2 text-[#4E7D79] font-semibold">Full Name</Text>
           <TextInput
             placeholder="Your Full Name"
             placeholderTextColor="#4E7D79"
             value={fullName}
             onChangeText={setFullName}
             className="bg-white rounded-xl px-4 py-3 text-[#4E7D79]"
+            style={shadowStyle}
           />
         </View>
 
-        {/* Unggah Dokumen ID */}
+        {/* Upload Dokumen */}
         <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Upload ID Document</Text>
+          <Text className="mb-2 text-[#4E7D79] font-semibold">
+            Upload ID Document
+          </Text>
           <TouchableOpacity
             onPress={pickIdDocument}
             className="bg-white rounded-xl h-48 justify-center items-center"
+            style={shadowStyle}
           >
             {idDocument ? (
               <Image
@@ -147,14 +135,12 @@ export default function IdentityVerificationScreen() {
                 resizeMode="cover"
               />
             ) : (
-              <View className="items-center">
-                <Text className="text-[#4E7D79]">Upload ID Document</Text>
-              </View>
+              <Text className="text-[#4E7D79]">Upload ID Document</Text>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* Checkbox Konfirmasi */}
+        {/* Checkbox */}
         <View className="mb-4">
           <TouchableOpacity
             className="flex-row items-center mb-2"
@@ -226,7 +212,7 @@ export default function IdentityVerificationScreen() {
         {/* Tombol Simpan */}
         <TouchableOpacity
           onPress={handleSave}
-          className="bg-[#EEC887] rounded-xl py-4 items-center"
+          className="bg-[#EEC887] rounded-2xl py-4 items-center"
         >
           <Text className="text-[#4E7D79] font-bold text-lg">Save</Text>
         </TouchableOpacity>
@@ -234,3 +220,11 @@ export default function IdentityVerificationScreen() {
     </View>
   );
 }
+
+const shadowStyle = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  elevation: 2,
+};

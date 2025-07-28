@@ -51,19 +51,20 @@ export default function ProfileIndexScreen() {
     <SafeAreaView className="flex-1 bg-[#F9EFE4]">
       <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
+      {/* Top Header with curve */}
+      <View className="bg-[#EEC887] pt-10 pb-6 rounded-b-3xl items-center">
+        <Text className="text-2xl font-bold text-[#1E1E1E]">Profile</Text>
+      </View>
+
+      {/* White content area */}
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: 24,
-          paddingTop: 24,
         }}
+        className="bg-white rounded-t-3xl -mt-4 px-6 pt-6"
       >
-        <View className="items-center mb-8">
-          <Text className="text-xl font-bold text-[#4E7D79]">Profile</Text>
-        </View>
-
-        {/* Profile Header */}
-        <View className="items-center mb-8">
+        {/* Avatar & Name */}
+        <View className="items-center mb-6">
           <View className="w-32 h-32 rounded-full bg-[#E0E0E0] items-center justify-center mb-4">
             <Image
               source={
@@ -75,8 +76,7 @@ export default function ProfileIndexScreen() {
               resizeMode="cover"
             />
           </View>
-
-          <Text className="text-lg font-bold text-[#4E7D79]">
+          <Text className="text-lg font-bold text-[#1E1E1E]">
             {profile?.fullname || "Penjelajah"}
           </Text>
           <Text className="text-[#4E7D79] opacity-70">
@@ -84,24 +84,30 @@ export default function ProfileIndexScreen() {
           </Text>
         </View>
 
-        {/* Profile Actions */}
-        <View className="space-y-4">
+        {/* Profile Menu List */}
+        <View className="space-y-4 mb-8">
           {/* Edit Profile */}
           <TouchableOpacity
             onPress={() => router.push("/profile/edit")}
-            className="flex-row items-center justify-between bg-white px-4 py-3 rounded-xl"
+            className="bg-white rounded-xl px-4 py-4 border border-[#E0E0E0] flex-row items-center justify-between"
           >
             <View className="flex-row items-center">
-              <Ionicons name="person-outline" size={24} color="#4E7D79" />
-              <Text className="ml-4 text-[#4E7D79]">Edit Profile</Text>
+              <Ionicons name="person-outline" size={22} color="#4E7D79" />
+              <Text className="ml-4 text-[#4E7D79] font-semibold">
+                Edit Profile
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#4E7D79" />
+            <Ionicons name="chevron-forward" size={22} color="#4E7D79" />
           </TouchableOpacity>
 
           {/* Identity Verification */}
           <TouchableOpacity
             onPress={() => router.push("/profile/verify")}
-            className="flex-row items-center justify-between bg-white px-4 py-3 rounded-xl"
+            className={`rounded-xl px-4 py-4 border flex-row items-center justify-between ${
+              profile?.identity_image_url
+                ? "bg-white border-[#E0E0E0]"
+                : "bg-white border-[#FBCACA]"
+            }`}
           >
             <View className="flex-row items-center">
               <Ionicons
@@ -110,11 +116,11 @@ export default function ProfileIndexScreen() {
                     ? "checkmark-circle"
                     : "alert-circle"
                 }
-                size={24}
+                size={22}
                 color={profile?.identity_image_url ? "#4E7D79" : "#D32F2F"}
               />
               <Text
-                className={`ml-4 ${
+                className={`ml-4 font-semibold ${
                   profile?.identity_image_url
                     ? "text-[#4E7D79]"
                     : "text-[#D32F2F]"
@@ -127,7 +133,7 @@ export default function ProfileIndexScreen() {
             </View>
             <Ionicons
               name="chevron-forward"
-              size={24}
+              size={22}
               color={profile?.identity_image_url ? "#4E7D79" : "#D32F2F"}
             />
           </TouchableOpacity>
@@ -135,25 +141,25 @@ export default function ProfileIndexScreen() {
           {/* Badge */}
           <TouchableOpacity
             onPress={() => router.push("/profile/badge")}
-            className="flex-row items-center justify-between bg-white px-4 py-3 rounded-xl"
+            className="bg-white rounded-xl px-4 py-4 border border-[#E0E0E0] flex-row items-center justify-between"
           >
             <View className="flex-row items-center">
-              <Ionicons name="medal" size={24} color="#4E7D79" />
-              <Text className="ml-4 text-[#4E7D79]">Badge</Text>
+              <Ionicons name="medal" size={22} color="#4E7D79" />
+              <Text className="ml-4 text-[#4E7D79] font-semibold">Badge</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#4E7D79" />
+            <Ionicons name="chevron-forward" size={22} color="#4E7D79" />
           </TouchableOpacity>
 
           {/* Logout */}
           <TouchableOpacity
             onPress={handleLogout}
-            className="flex-row items-center justify-between bg-white px-4 py-3 rounded-xl"
+            className="bg-white rounded-xl px-4 py-4 border border-[#FBCACA] flex-row items-center justify-between"
           >
             <View className="flex-row items-center">
-              <Ionicons name="log-out" size={24} color="#D32F2F" />
-              <Text className="ml-4 text-[#D32F2F]">Logout</Text>
+              <Ionicons name="log-out-outline" size={22} color="#D32F2F" />
+              <Text className="ml-4 text-[#D32F2F] font-semibold">Logout</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color="#D32F2F" />
+            <Ionicons name="chevron-forward" size={22} color="#D32F2F" />
           </TouchableOpacity>
         </View>
       </ScrollView>

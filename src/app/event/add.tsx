@@ -1,4 +1,7 @@
+import DetailHeader from "@/app/components/DetailHeader";
 import { useEvent } from "@/hooks/useEvent";
+import { Dimensions } from "react-native";
+
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
@@ -34,10 +37,6 @@ export default function AddEventScreen() {
 
   const { createEvent } = useEvent();
 
-  const handleGoBack = () => {
-    router.back();
-  };
-
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -52,14 +51,12 @@ export default function AddEventScreen() {
   };
 
   const handleNext = async () => {
-    // Validasi input
     if (!eventTitle || !eventDescription || !province || !city || !image) {
       Alert.alert("Error", "Harap isi semua field");
       return;
     }
 
     try {
-      // Contoh pengiriman data event (sesuaikan dengan backend Anda)
       const eventData = {
         title: eventTitle,
         description: eventDescription,
@@ -84,277 +81,194 @@ export default function AddEventScreen() {
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: "#F9EFE4" }}>
-      {/* Header */}
-      <View className="flex-row items-center p-4">
-        <TouchableOpacity onPress={handleGoBack} className="mr-4">
-          <Text className="text-[#4E7D79] text-lg">{"<"}</Text>
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-[#4E7D79]">Create Event</Text>
-      </View>
+    <View className="flex-1 bg-[#EEC887]">
+      <DetailHeader title="Create Event" />
 
       <ScrollView
+        className="flex-1"
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 100, // Tambahkan padding bawah yang lebih besar
+          backgroundColor: "#EEC887", // warna krem
+          minHeight: Dimensions.get("window").height, // tinggi minimum agar menutup semua
         }}
-        keyboardShouldPersistTaps="handled" // Memungkinkan sentuhan di luar input untuk menutup keyboard
-        showsVerticalScrollIndicator={false} // Sembunyikan scrollbar vertikal
+        showsVerticalScrollIndicator={false}
       >
-        {/* Event Title */}
-        <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Event Title</Text>
-          <View
-            className="bg-white rounded-xl px-4 py-3"
-            style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <TextInput
-              placeholder="Festival Budaya Nusantara"
-              placeholderTextColor="#4E7D79"
-              value={eventTitle}
-              onChangeText={setEventTitle}
-              className="text-[#4E7D79]"
-            />
-          </View>
-        </View>
+        <View className="bg-white rounded-t-3xl px-4 pt-6 pb-10">
+          {/* Input Group */}
+          {[
+            {
+              label: "Event Title",
+              value: eventTitle,
+              setter: setEventTitle,
+              placeholder: "Festival Budaya Nusantara",
+              multiline: false,
+            },
+            {
+              label: "Event Description",
+              value: eventDescription,
+              setter: setEventDescription,
+              placeholder: "Deskripsi acara...",
+              multiline: true,
+              height: "h-32",
+            },
+            {
+              label: "Province",
+              value: province,
+              setter: setProvince,
+              placeholder: "West Java",
+            },
+            {
+              label: "City",
+              value: city,
+              setter: setCity,
+              placeholder: "Bandung",
+            },
+          ].map(
+            ({ label, value, setter, placeholder, multiline, height }, i) => (
+              <View className="mb-4" key={i}>
+                <Text className="mb-2 text-[#1E1E1E]">{label}</Text>
+                <View
+                  className={`bg-white rounded-xl px-4 py-3 ${height || ""}`}
+                  style={shadowStyle}
+                >
+                  <TextInput
+                    placeholder={placeholder}
+                    placeholderTextColor="#4E7D79"
+                    value={value}
+                    onChangeText={setter}
+                    multiline={multiline}
+                    textAlignVertical="top"
+                    className="text-[#1E1E1E]"
+                  />
+                </View>
+              </View>
+            )
+          )}
 
-        {/* Event Description */}
-        <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Event Description</Text>
-          <View
-            className="bg-white rounded-xl px-4 py-3 h-32"
-            style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <TextInput
-              placeholder="Festival Budaya Nusantara adalah perayaan keragaman budaya Indonesia yang menghadirkan pertunjukan seni tradisional, kuliner khas daerah, pameran kerjainan lokal, serta diskusi budaya interaktif. Pengunjung juga bisa berinteraksi dengan AI Budaya dan komunitas budaya lainnya."
-              placeholderTextColor="#4E7D79"
-              value={eventDescription}
-              onChangeText={setEventDescription}
-              multiline
-              textAlignVertical="top"
-              className="text-[#4E7D79]"
-            />
+          {/* Date */}
+          <View className="flex-row justify-between mb-4">
+            {[
+              {
+                label: "Start Date",
+                value: startDate,
+                show: showStartDatePicker,
+                setShow: setShowStartDatePicker,
+                setter: setStartDate,
+              },
+              {
+                label: "End Date",
+                value: endDate,
+                show: showEndDatePicker,
+                setShow: setShowEndDatePicker,
+                setter: setEndDate,
+              },
+            ].map((item, i) => (
+              <View className="flex-1" key={i}>
+                <Text className="mb-2 text-[#1E1E1E]">{item.label}</Text>
+                <TouchableOpacity
+                  onPress={() => item.setShow(true)}
+                  className="bg-white rounded-xl px-4 py-3 mr-2"
+                  style={shadowStyle}
+                >
+                  <Text className="text-[#1E1E1E]">
+                    {item.value.toLocaleDateString()}
+                  </Text>
+                </TouchableOpacity>
+                {item.show && (
+                  <DateTimePicker
+                    value={item.value}
+                    mode="date"
+                    display="default"
+                    onChange={(e, date) => {
+                      item.setShow(Platform.OS === "ios");
+                      if (date) item.setter(date);
+                    }}
+                  />
+                )}
+              </View>
+            ))}
           </View>
-        </View>
 
-        {/* Date Inputs */}
-        <View className="flex-row justify-between mb-4">
-          <View className="flex-1 mr-2">
-            <Text className="mb-2 text-[#4E7D79]">Start Date</Text>
+          {/* Time */}
+          <View className="flex-row justify-between mb-4">
+            {[
+              {
+                label: "Start Time",
+                value: startTime,
+                show: showStartTimePicker,
+                setShow: setShowStartTimePicker,
+                setter: setStartTime,
+              },
+              {
+                label: "End Time",
+                value: endTime,
+                show: showEndTimePicker,
+                setShow: setShowEndTimePicker,
+                setter: setEndTime,
+              },
+            ].map((item, i) => (
+              <View className="flex-1" key={i}>
+                <Text className="mb-2 text-[#1E1E1E]">{item.label}</Text>
+                <TouchableOpacity
+                  onPress={() => item.setShow(true)}
+                  className="bg-white rounded-xl px-4 py-3 mr-2"
+                  style={shadowStyle}
+                >
+                  <Text className="text-[#1E1E1E]">
+                    {item.value.toLocaleTimeString()}
+                  </Text>
+                </TouchableOpacity>
+                {item.show && (
+                  <DateTimePicker
+                    value={item.value}
+                    mode="time"
+                    display="default"
+                    onChange={(e, time) => {
+                      item.setShow(Platform.OS === "ios");
+                      if (time) item.setter(time);
+                    }}
+                  />
+                )}
+              </View>
+            ))}
+          </View>
+
+          {/* Image Picker */}
+          <View className="mb-4">
+            <Text className="mb-2 text-[#1E1E1E]">Supporting Image</Text>
             <TouchableOpacity
-              onPress={() => setShowStartDatePicker(true)}
-              className="bg-white rounded-xl px-4 py-3"
-              style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 2,
-              }}
+              onPress={pickImage}
+              className="bg-white rounded-xl h-48 justify-center items-center"
+              style={shadowStyle}
             >
-              <Text className="text-[#4E7D79]">
-                {startDate.toLocaleDateString()}
-              </Text>
+              {image ? (
+                <Image
+                  source={{ uri: image }}
+                  className="w-full h-full rounded-xl"
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="image-outline" size={48} color="#4E7D79" />
+              )}
             </TouchableOpacity>
-            {showStartDatePicker && (
-              <DateTimePicker
-                value={startDate}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowStartDatePicker(Platform.OS === "ios");
-                  if (selectedDate) setStartDate(selectedDate);
-                }}
-              />
-            )}
           </View>
-          <View className="flex-1 ml-2">
-            <Text className="mb-2 text-[#4E7D79]">End Date</Text>
-            <TouchableOpacity
-              onPress={() => setShowEndDatePicker(true)}
-              className="bg-white rounded-xl px-4 py-3"
-              style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 2,
-              }}
-            >
-              <Text className="text-[#4E7D79]">
-                {endDate.toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
-            {showEndDatePicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowEndDatePicker(Platform.OS === "ios");
-                  if (selectedDate) setEndDate(selectedDate);
-                }}
-              />
-            )}
-          </View>
-        </View>
 
-        {/* Time Inputs */}
-        <View className="flex-row justify-between mb-4">
-          <View className="flex-1 mr-2">
-            <Text className="mb-2 text-[#4E7D79]">Start Time</Text>
-            <TouchableOpacity
-              onPress={() => setShowStartTimePicker(true)}
-              className="bg-white rounded-xl px-4 py-3"
-              style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 2,
-              }}
-            >
-              <Text className="text-[#4E7D79]">
-                {startTime.toLocaleTimeString()}
-              </Text>
-            </TouchableOpacity>
-            {showStartTimePicker && (
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                display="default"
-                onChange={(event, selectedTime) => {
-                  setShowStartTimePicker(Platform.OS === "ios");
-                  if (selectedTime) setStartTime(selectedTime);
-                }}
-              />
-            )}
-          </View>
-          <View className="flex-1 ml-2">
-            <Text className="mb-2 text-[#4E7D79]">End Time</Text>
-            <TouchableOpacity
-              onPress={() => setShowEndTimePicker(true)}
-              className="bg-white rounded-xl px-4 py-3"
-              style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 2,
-              }}
-            >
-              <Text className="text-[#4E7D79]">
-                {endTime.toLocaleTimeString()}
-              </Text>
-            </TouchableOpacity>
-            {showEndTimePicker && (
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                display="default"
-                onChange={(event, selectedTime) => {
-                  setShowEndTimePicker(Platform.OS === "ios");
-                  if (selectedTime) setEndTime(selectedTime);
-                }}
-              />
-            )}
-          </View>
-        </View>
-
-        {/* Province Input */}
-        <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Province</Text>
-          <View
-            className="bg-white rounded-xl px-4 py-3"
-            style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <TextInput
-              placeholder="West Java"
-              placeholderTextColor="#4E7D79"
-              value={province}
-              onChangeText={setProvince}
-              className="text-[#4E7D79]"
-            />
-          </View>
-        </View>
-
-        {/* City Input */}
-        <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79]">City</Text>
-          <View
-            className="bg-white rounded-xl px-4 py-3"
-            style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <TextInput
-              placeholder="Bandung"
-              placeholderTextColor="#4E7D79"
-              value={city}
-              onChangeText={setCity}
-              className="text-[#4E7D79]"
-            />
-          </View>
-        </View>
-
-        {/* Supporting Image */}
-        <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79]">Supporting Image</Text>
-          <TouchableOpacity
-            onPress={pickImage}
-            className="bg-white rounded-xl h-48 justify-center items-center"
-            style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            {image ? (
-              <Image
-                source={{ uri: image }}
-                className="w-full h-full rounded-xl"
-                resizeMode="cover"
-              />
-            ) : (
-              <Ionicons name="image-outline" size={48} color="#4E7D79" />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Next Button */}
-        <View className="pb-10 px-4">
+          {/* Button */}
           <TouchableOpacity
             onPress={handleNext}
-            className="bg-[#EEC887] rounded-xl py-4 items-center"
+            className="bg-[#EEC887] rounded-xl py-4 items-center mt-4"
           >
-            <Text className="text-[#4E7D79] font-bold text-lg">Next</Text>
+            <Text className="text-[#1E1E1E] font-bold text-lg">Next</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
   );
 }
+
+const shadowStyle = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+  elevation: 2,
+};
