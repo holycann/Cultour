@@ -14,6 +14,7 @@ export class EventService extends BaseApiService {
       const response = await this.get<Event[]>('/events');
       
       if (!response.success) {
+        console.log("Error Events:", response);
         throw new Error(response.error || 'Failed to fetch events');
       }
       
@@ -31,10 +32,15 @@ export class EventService extends BaseApiService {
   static async fetchTrendingEvents(): Promise<Event[]> {
     try {
       const response = await this.get<Event[]>('/events/trending');
+
+      console.log("Status:", response)
       
       if (!response.success) {
+        console.log("Error Trending:", response);
         throw new Error(response.error || 'Failed to fetch trending events');
       }
+      
+      console.log("Data Trending:", response);
       
       return response.data || [];
     } catch (error) {

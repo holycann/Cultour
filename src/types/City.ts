@@ -1,9 +1,12 @@
-export interface City {
-  id: string; // uuid
+import { Province } from "./Province";
+export type City = {
+  id: string;
   name: string;
-  province: string;
-  image_url: string;
-  created_at: Date;
+  province_id: string;
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
+  Province?: Province; // Avoid circular dependency
   locations?: Location[]; // Avoid circular dependency
-  events?: Event[]; // Avoid circular dependency
-}
+  events?: Event[];
+};

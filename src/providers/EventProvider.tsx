@@ -3,7 +3,7 @@ import { EventService } from "@/services/eventService";
 import { parseError } from "@/types/AppError";
 import { Event } from "@/types/Event";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
-import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import React, { ReactNode, useCallback, useReducer } from "react";
 
 /**
  * Event state type for reducer
@@ -218,8 +218,14 @@ export function EventProvider({ children }: EventProviderProps) {
    * Get event by ID
    */
   const getEventById = useCallback(
-    (eventId: string) => {
-      return state.events.find((event) => event.id === eventId);
+    async (eventId: string) => {
+      const foundEvent = state.events.find((event) => event.id === eventId);
+
+      dispatch({
+        type: "SET_SINGLE_EVENT",
+        payload: foundEvent || null,
+      });
+      return foundEvent;
     },
     [state.events]
   );
@@ -228,7 +234,7 @@ export function EventProvider({ children }: EventProviderProps) {
    * Get event by name
    */
   const getEventByName = useCallback(
-    (eventName: string) => {
+    async (eventName: string): Promise<Event | null> => {
       const foundEvent = state.events.find((event) =>
         event.name.toLowerCase().includes(eventName.toLowerCase())
       );
@@ -239,7 +245,7 @@ export function EventProvider({ children }: EventProviderProps) {
         payload: foundEvent || null,
       });
 
-      return foundEvent;
+      return foundEvent || null;
     },
     [state.events]
   );
@@ -254,41 +260,24 @@ export function EventProvider({ children }: EventProviderProps) {
   /**
    * Context value
    */
-  const value = useMemo(
-    () => ({
-      events: state.events,
-      event: state.event,
-      trendingEvents: state.trendingEvents,
-      isLoading: state.isLoading,
-      error: state.error,
-      fetchEvents,
-      fetchTrendingEvents,
-      createEvent,
-      updateEvent,
-      deleteEvent,
-      getEventById,
-      getEventByName,
-      clearError,
-    }),
-    [
-      state.events,
-      state.event,
-      state.trendingEvents,
-      state.isLoading,
-      state.error,
-      fetchEvents,
-      fetchTrendingEvents,
-      createEvent,
-      updateEvent,
-      deleteEvent,
-      getEventById,
-      getEventByName,
-      clearError,
-    ]
-  );
+  const value: EventContextType = {
+    events: state.events,
+    event: state.event,
+    trendingEvents: state.trendingEvents,
+    isLoading: state.isLoading,
+    error: state.error,
+    fetchEvents,
+    fetchTrendingEvents,
+    createEvent,
+    updateEvent,
+    deleteEvent,
+    getEventById,
+    getEventByName,
+    clearError,
+  };
 
   return (
-    <EventContext.Provider value={value as EventContextType}>
+    <EventContext.Provider value={value}>
       {children}
     </EventContext.Provider>
   );

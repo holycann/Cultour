@@ -19,8 +19,8 @@ export interface EventContextType {
   createEvent: (eventData: Partial<Event>) => Promise<boolean>;
   updateEvent: (eventId: string, eventData: Partial<Event>) => Promise<boolean>;
   deleteEvent: (eventId: string) => Promise<boolean>;
-  getEventById: (eventId: string) => Event | undefined;
-  getEventByName: (eventName: string) => Event | null;
+  getEventById: (eventId: string) => Promise<Event | undefined>;
+  getEventByName: (eventName: string) => Promise<Event | null>;
   clearError: () => void;
 }
 

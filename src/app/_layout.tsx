@@ -34,11 +34,11 @@ const RootNavigator = memo(function RootNavigator() {
           options={{ headerShown: false, animation: "slide_from_bottom" }}
         />
         <Stack.Screen
-          name="place/[name]"
+          name="place/[id]"
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen
-          name="event/[name]"
+          name="event/[id]"
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen
@@ -62,15 +62,15 @@ const RootNavigator = memo(function RootNavigator() {
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen
-          name="event/[_name]"
+          name="event/[_id]"
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen
-          name="event/[name]/chat/index"
+          name="event/[id]/chat/index"
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen
-          name="event/[name]/discussion/index"
+          name="event/[id]/discussion/index"
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
       </Stack>

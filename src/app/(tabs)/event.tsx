@@ -94,7 +94,7 @@ export default function EventScreen() {
               <Text style={styles.eventTitle}>{event.name}</Text>
               <TouchableOpacity
                 style={styles.detailButton}
-                onPress={() => router.push(`/event/${event.name}`)}
+                onPress={() => router.push(`/event/${event.id}`)}
               >
                 <Text style={styles.detailButtonText}>See Detail</Text>
               </TouchableOpacity>

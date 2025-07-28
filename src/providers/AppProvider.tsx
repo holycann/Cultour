@@ -2,6 +2,7 @@ import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Import all providers
+import { AiProvider } from "./AiProvider";
 import { AuthProvider } from "./AuthProvider";
 import { BadgeProvider } from "./BadgeProvider";
 import { CityProvider } from "./CityProvider";
@@ -34,9 +35,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
                   <CityProvider>
                     <BadgeProvider>
                       <ProvinceProvider>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                          {children}
-                        </GestureHandlerRootView>
+                        <AiProvider>
+                          <GestureHandlerRootView style={{ flex: 1 }}>
+                            {children}
+                          </GestureHandlerRootView>
+                        </AiProvider>
                       </ProvinceProvider>
                     </BadgeProvider>
                   </CityProvider>
