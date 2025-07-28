@@ -1,16 +1,17 @@
-# Learn more https://docs.github.com/en/get-started/getting-started/git/ignoring-files
+# Panduan lengkap tentang mengabaikan file: https://docs.github.com/en/get-started/getting-started/git/ignoring-files
 
-# dependencies
+# Dependensi Proyek
 node_modules/
+.pnp/
+.pnp.js
 
-# Expo
+# Lingkungan Pengembangan Expo
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
-.kotlin/
+# File Sumber Asli dan Kredensial
 *.orig.*
 *.jks
 *.p8
@@ -18,38 +19,38 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
-# Android specific
-android/*
-
-# iOS specific
-ios/*
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# Gradle
+# Platform Spesifik
+.kotlin/
+android/
+ios/
 *.gradle
 *.properties
 
-# Build outputs
+# Konfigurasi Pembangunan
 build/
 *.apk
 *.aab
 
-# Misc
-app-example
+# Debugging dan Log
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Berkas Lingkungan Lokal
+.env*.local
+.env.development
+.env.production
+
+# TypeScript
+*.tsbuildinfo
+
+# Sistem Operasi
+.DS_Store
+*.pem
+
+# Berkas Contoh dan Tambahan
+app-example/
+*.log
+.vscode/
+.idea/
