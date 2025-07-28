@@ -43,41 +43,52 @@ export default function EventScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FFF5E1]">
+    <SafeAreaView className="flex-1 bg-[#EEC887]">
       <DetailHeader title="Event" />
-      <ScrollView
-        contentContainerStyle={{
-          paddingBottom: 20,
-          paddingHorizontal: 24,
-        }}
-      >
-        {events.map((event) => (
-          <TouchableOpacity
-            key={event.id}
-            onPress={() => handleEventDetail(event.id)}
-            className="mb-4 rounded-xl overflow-hidden"
-          >
-            <View className="bg-white rounded-xl shadow-md">
-              <Image
-                source={{ uri: event.image_url || "default_image_url" }}
-                className="w-full h-48"
-                resizeMode="cover"
-              />
-              <View className="p-4">
-                <Text className="text-lg font-bold text-[#4E7D79]">
+
+      <View className="flex-1 bg-white rounded-t-3xl pt-8 px-6">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingBottom: 32,
+          }}
+        >
+          {events.map((event) => (
+            <TouchableOpacity
+              key={event.id}
+              onPress={() => handleEventDetail(event.id)}
+              className="items-center mb-6"
+            >
+              <View className="w-full rounded-3xl bg-[#F3DDBF] p-4">
+                {/* Gambar */}
+                <Image
+                  source={{
+                    uri:
+                      event.image_url || "https://via.placeholder.com/350x200",
+                  }}
+                  className="w-full h-48 rounded-2xl mb-4"
+                  resizeMode="cover"
+                />
+
+                {/* Text */}
+                <Text className="text-lg font-bold text-[#1E1E1E] mb-1">
                   {event.name}
                 </Text>
-                <Text className="text-sm text-gray-600 mt-2">
+                <Text className="text-sm text-gray-600 mb-2">
                   {event.description}
                 </Text>
-                <View className="flex-row items-center mt-2">
+
+                {/* Action */}
+                <View className="flex-row items-center">
                   <TouchableOpacity
                     onPress={() => handleEventDetail(event.id)}
                     className="flex-row items-center"
                   >
-                    <Text className="text-[#EEC887] font-bold mr-2">
-                      See Detail
-                    </Text>
+                    <View className="bg-[#EEC887] px-4 py-1 rounded-full mr-2">
+                      <Text className="text-[#1E1E1E] font-bold text-sm">
+                        See Detail
+                      </Text>
+                    </View>
                     <Ionicons
                       name="chevron-forward"
                       size={20}
@@ -86,10 +97,10 @@ export default function EventScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

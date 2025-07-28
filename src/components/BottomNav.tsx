@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, usePathname } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -52,7 +52,7 @@ export default function BottomNav({
 
     switch (tabName) {
       case "home":
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/home");
         break;
       case "place":
         router.replace("/(tabs)/place");

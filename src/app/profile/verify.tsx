@@ -1,16 +1,16 @@
 import { useUser } from "@/hooks/useUser"; // Added useUser hook
-import { Icon } from "@iconify/react";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function IdentityVerificationScreen() {
@@ -160,14 +160,9 @@ export default function IdentityVerificationScreen() {
             className="flex-row items-center mb-2"
             onPress={() => setIsConfirmedIdentity(!isConfirmedIdentity)}
           >
-            <Icon
-              icon={
-                isConfirmedIdentity
-                  ? "mdi:checkbox-marked"
-                  : "mdi:checkbox-blank-outline"
-              }
-              width={24}
-              height={24}
+            <Ionicons
+              name={isConfirmedIdentity ? "checkbox-outline" : "square-outline"}
+              size={24}
               color="#4E7D79"
             />
             <Text className="ml-2 text-[#4E7D79] text-xs">
@@ -180,14 +175,9 @@ export default function IdentityVerificationScreen() {
             className="flex-row items-center mb-2"
             onPress={() => setIsAgreedToTerms(!isAgreedToTerms)}
           >
-            <Icon
-              icon={
-                isAgreedToTerms
-                  ? "mdi:checkbox-marked"
-                  : "mdi:checkbox-blank-outline"
-              }
-              width={24}
-              height={24}
+            <Ionicons
+              name={isAgreedToTerms ? "checkbox-outline" : "square-outline"}
+              size={24}
               color="#4E7D79"
             />
             <Text className="ml-2 text-[#4E7D79] text-xs">
@@ -200,14 +190,11 @@ export default function IdentityVerificationScreen() {
             className="flex-row items-center mb-2"
             onPress={() => setIsUnderstandMisleading(!isUnderstandMisleading)}
           >
-            <Icon
-              icon={
-                isUnderstandMisleading
-                  ? "mdi:checkbox-marked"
-                  : "mdi:checkbox-blank-outline"
+            <Ionicons
+              name={
+                isUnderstandMisleading ? "checkbox-outline" : "square-outline"
               }
-              width={24}
-              height={24}
+              size={24}
               color="#4E7D79"
             />
             <Text className="ml-2 text-[#4E7D79] text-xs">

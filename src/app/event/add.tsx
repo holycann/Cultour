@@ -1,18 +1,18 @@
 import { useEvent } from "@/hooks/useEvent";
-import { Icon } from "@iconify/react";
+import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function AddEventScreen() {
@@ -340,12 +340,7 @@ export default function AddEventScreen() {
                 resizeMode="cover"
               />
             ) : (
-              <Icon
-                icon="mdi:image-plus"
-                width={48}
-                height={48}
-                color="#4E7D79"
-              />
+              <Ionicons name="image-outline" size={48} color="#4E7D79" />
             )}
           </TouchableOpacity>
         </View>

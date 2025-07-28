@@ -4,7 +4,7 @@ import { Typography } from "@/constants/Typography";
 import { useAuth } from "@/hooks/useAuth";
 import { logger } from "@/utils/logger";
 import { hasErrors, validate, validators } from "@/utils/validation";
-import { Icon } from "@iconify/react";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -149,10 +149,9 @@ export default function RegisterPage() {
             Display Name
           </Text>
           <View className="flex-row items-center border-b border-[#E0E0E0] py-3">
-            <Icon
-              icon="mdi:account"
-              width={20}
-              height={20}
+            <Ionicons
+              name="person-outline"
+              size={20}
               color="#666"
               className="mr-3"
             />
@@ -169,9 +168,7 @@ export default function RegisterPage() {
             />
           </View>
           {errors.fullname && (
-            <Text className="text-red-500 text-xs mt-1">
-              {errors.fullname}
-            </Text>
+            <Text className="text-red-500 text-xs mt-1">{errors.fullname}</Text>
           )}
         </View>
 
@@ -181,10 +178,9 @@ export default function RegisterPage() {
             Email
           </Text>
           <View className="flex-row items-center border-b border-[#E0E0E0] py-3">
-            <Icon
-              icon="mdi:at"
-              width={20}
-              height={20}
+            <Ionicons
+              name="at-outline"
+              size={20}
               color="#666"
               className="mr-3"
             />
@@ -213,10 +209,9 @@ export default function RegisterPage() {
             Password
           </Text>
           <View className="flex-row items-center border-b border-[#E0E0E0] py-3">
-            <Icon
-              icon="mdi:lock"
-              width={20}
-              height={20}
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
               color="#666"
               className="mr-3"
             />
@@ -233,10 +228,9 @@ export default function RegisterPage() {
               className="flex-1 text-base text-[#1A1A1A]"
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Icon
-                icon={showPassword ? "mdi:eye-off" : "mdi:eye"}
-                width={20}
-                height={20}
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
                 color="#666"
               />
             </TouchableOpacity>

@@ -118,24 +118,26 @@ export function UserProvider({ children }: UserProviderProps) {
       dispatch({ type: "USER_START" });
 
       try {
-        // Ensure we have a user_id
-        if (!state.user?.id) {
+        if (!state.user?.id || !state.profile?.id) {
           throw new Error("Pengguna tidak terautentikasi");
         }
 
-        const updatedProfile = await UserService.updateProfile(
-          state.user.id,
-          profileData
+        // Kirim hanya field yang dibolehkan
+        const payload = {
+          user_id: state.user.id,
+          fullname: profileData.fullname || state.profile.fullname,
+          bio: profileData.bio ?? state.profile.bio,
+          avatar_url: profileData.avatar_url ?? state.profile.avatar_url,
+        };
+
+        console.log("Sending profile payload:", payload); // Optional: debug
+
+        await UserService.updateProfile(
+          state.profile.id,
+          payload as UserProfile
         );
 
-        // Optimistically update local state
-        dispatch({
-          type: "USER_SUCCESS",
-          payload: {
-            user: state.user,
-            profile: { ...state.profile, ...updatedProfile } as UserProfile,
-          },
-        });
+        await fetchUserProfile(state.user.id);
 
         showDialogSuccess("Berhasil", "Profil berhasil diperbarui");
         return true;
@@ -144,7 +146,7 @@ export function UserProvider({ children }: UserProviderProps) {
         return false;
       }
     },
-    [state.user, handleError]
+    [state.user, state.profile, handleError, fetchUserProfile]
   );
 
   /**
@@ -199,23 +201,10 @@ export function UserProvider({ children }: UserProviderProps) {
           throw new Error("Pengguna tidak terautentikasi");
         }
 
-        // Upload avatar and get public URL
-        const publicUrl = await UserService.uploadAvatar(
-          state.user.id,
-          avatarFile
-        );
+        await UserService.uploadAvatar(state.user.id, avatarFile);
 
-        // Optimistically update local state
-        dispatch({
-          type: "USER_SUCCESS",
-          payload: {
-            user: state.user,
-            profile: {
-              ...state.profile,
-              avatar_url: publicUrl,
-            } as UserProfile,
-          },
-        });
+        // Refetch profile dari backend agar avatar dan data lain sinkron
+        await fetchUserProfile(state.user.id);
 
         showDialogSuccess("Berhasil", "Avatar berhasil diperbarui");
         return true;
@@ -224,7 +213,7 @@ export function UserProvider({ children }: UserProviderProps) {
         return false;
       }
     },
-    [state.user, handleError]
+    [state.user, handleError, fetchUserProfile]
   );
 
   /**

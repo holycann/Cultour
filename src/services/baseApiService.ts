@@ -19,7 +19,7 @@ export class BaseApiService {
     // Initialize axios if not already initialized
     if (!this.axiosInstance) {
       this.axiosInstance = axios.create({
-        baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8181',
+        baseURL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8181",
         headers: {
           "Content-Type": "application/json",
         },
@@ -77,7 +77,7 @@ export class BaseApiService {
         url,
         config
       );
-      
+
       return response.data;
     } catch (error: any) {
       return this.handleError<T>(error);
@@ -98,7 +98,7 @@ export class BaseApiService {
         data,
         config
       );
-      
+
       return response.data;
     } catch (error: any) {
       return this.handleError<R>(error);
@@ -119,7 +119,7 @@ export class BaseApiService {
         data,
         config
       );
-      
+
       return response.data;
     } catch (error: any) {
       return this.handleError<R>(error);
@@ -138,7 +138,7 @@ export class BaseApiService {
         url,
         config
       );
-      
+
       return response.data;
     } catch (error: any) {
       return this.handleError<T>(error);
@@ -152,26 +152,22 @@ export class BaseApiService {
     // Check if error response follows backend error structure
     if (error.response && error.response.data) {
       const errorData = error.response.data;
-      
+
       // Ensure the error response matches ApiResponse structure
       const errorResponse: ApiResponse<T> = {
         success: false,
-        message: errorData.message || 'An error occurred',
+        message: errorData.message || "An error occurred",
         data: null,
-        error: errorData.error || 'An unknown error occurred',
+        error: errorData.error || "An unknown error occurred",
         details: errorData.details || null,
         metadata: errorData.metadata,
       };
 
       // Log the error
-      logger.error(
-        "BaseApiService", 
-        "API Error", 
-        {
-          error: errorResponse.error,
-          details: errorResponse.details,
-        }
-      );
+      logger.error("BaseApiService", "API Error", {
+        error: errorResponse.error,
+        details: errorResponse.details,
+      });
 
       return errorResponse;
     }
@@ -179,17 +175,13 @@ export class BaseApiService {
     // Network or other errors
     const networkErrorResponse: ApiResponse<T> = {
       success: false,
-      message: 'Network error',
+      message: "Network error",
       data: null,
-      error: error.message || 'An unexpected error occurred',
+      error: error.message || "An unexpected error occurred",
       details: error,
     };
 
-    logger.error(
-      "BaseApiService", 
-      "Network Error", 
-      networkErrorResponse.error
-    );
+    logger.error("BaseApiService", "Network Error", networkErrorResponse.error);
 
     return networkErrorResponse;
   }

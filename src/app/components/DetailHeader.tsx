@@ -1,4 +1,4 @@
-import { Icon } from "@iconify/react";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
@@ -25,10 +25,9 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
           onPress={handleGoBack}
           className="absolute left-4 top-1/2 -translate-y-1/2"
         >
-          <Icon
-            icon="mdi:arrow-left-circle-outline"
-            width={30}
-            height={30}
+          <Ionicons
+            name="arrow-back-circle-outline"
+            size={30}
             color="#4E7D79"
           />
         </TouchableOpacity>

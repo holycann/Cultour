@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
-import { Icon } from "@iconify/react";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -133,7 +133,7 @@ export default function EditProfileScreen() {
             />
           )}
           <View className="absolute bottom-0 right-0 bg-[#EEC887] rounded-full p-2">
-            <Icon icon="mdi:pencil" width={20} height={20} color="#4E7D79" />
+            <Ionicons name="pencil-outline" size={20} color="#4E7D79" />
           </View>
         </TouchableOpacity>
 

@@ -1,6 +1,6 @@
 import { useEvent } from "@/hooks/useEvent";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Icon } from "@iconify/react";
+import { Ionicons } from "@expo/vector-icons";
 import DetailHeader from "@/app/components/DetailHeader";
 import React, { useEffect } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";

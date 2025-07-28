@@ -12,6 +12,7 @@ export class UserService extends BaseApiService {
    */
   static async getUser(userId: string): Promise<User | null> {
     try {
+      // Gunakan backtick ``
       const response = await this.get<User>(`/users/${userId}`);
 
       if (!response.success) {
@@ -74,17 +75,17 @@ export class UserService extends BaseApiService {
 
   /**
    * Update user profile
-   * @param userId User's unique identifier
-   * @param profileData Partial user profile data to update
+   * @param profileId User Profile's unique identifier
+   * @param profileData Full user profile data to update
    * @returns Promise resolving to updated user profile or null
    */
   static async updateProfile(
-    userId: string,
-    profileData: Partial<UserProfile>
+    profileId: string,
+    profileData: UserProfile
   ): Promise<UserProfile | null> {
     try {
-      const response = await this.put<Partial<UserProfile>, UserProfile>(
-        `/profile/${userId}`,
+      const response = await this.put<UserProfile, UserProfile>(
+        `/profile/${profileId}`,
         profileData
       );
 
@@ -113,9 +114,10 @@ export class UserService extends BaseApiService {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("avatar", {
-        uri: 'uri' in avatarFile ? avatarFile.uri : avatarFile.webkitRelativePath,
-        type: 'type' in avatarFile ? avatarFile.type : avatarFile.type,
-        name: 'name' in avatarFile ? avatarFile.name : avatarFile.name,
+        uri:
+          "uri" in avatarFile ? avatarFile.uri : avatarFile.webkitRelativePath,
+        type: "type" in avatarFile ? avatarFile.type : avatarFile.type,
+        name: "name" in avatarFile ? avatarFile.name : avatarFile.name,
       } as any);
 
       const response = await this.post<FormData, { avatarUrl: string }>(
