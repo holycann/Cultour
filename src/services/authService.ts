@@ -11,7 +11,10 @@ export class AuthService {
    * @param credentials User login credentials
    * @returns Promise resolving to authenticated user or null
    */
-  static async login({ email, password }: AuthCredentials): Promise<AuthUser | null> {
+  static async login({
+    email,
+    password,
+  }: AuthCredentials): Promise<AuthUser | null> {
     // Validate inputs
     if (!email || !password) {
       throw new Error("Mohon isi semua field");
@@ -33,9 +36,9 @@ export class AuthService {
 
       if (error) {
         switch (error.message) {
-          case 'Invalid login credentials':
+          case "Invalid login credentials":
             throw new Error("Email atau password salah");
-          case 'Email not confirmed':
+          case "Email not confirmed":
             throw new Error("Silakan konfirmasi email Anda terlebih dahulu");
           default:
             throw new Error(error.message || "Terjadi kesalahan saat login");
@@ -44,11 +47,9 @@ export class AuthService {
 
       return data.user ? this.mapSupabaseUserToAuthUser(data.user) : null;
     } catch (error) {
-      const errorMessage = 
-        error instanceof Error 
-          ? error.message 
-          : "Terjadi kesalahan saat login";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Terjadi kesalahan saat login";
+
       throw new Error(errorMessage);
     }
   }
@@ -61,7 +62,7 @@ export class AuthService {
   static async register({
     email,
     password,
-    display_name,
+    fullname,
   }: RegistrationData): Promise<AuthUser | null> {
     // Validate inputs
     if (!email || !password) {
@@ -82,17 +83,17 @@ export class AuthService {
         password,
         options: {
           data: {
-            display_name,
+            fullname,
           },
-          emailRedirectTo: 'cultour://verify-email', // Custom deep link
+          emailRedirectTo: "cultour://verify-email", // Custom deep link
         },
       });
 
       if (error) {
         switch (error.message) {
-          case 'User already exists':
+          case "User already exists":
             throw new Error("Email sudah terdaftar");
-          case 'Invalid email format':
+          case "Invalid email format":
             throw new Error("Format email tidak valid");
           default:
             throw new Error(error.message || "Gagal melakukan registrasi");
@@ -101,11 +102,9 @@ export class AuthService {
 
       return data.user ? this.mapSupabaseUserToAuthUser(data.user) : null;
     } catch (error) {
-      const errorMessage = 
-        error instanceof Error 
-          ? error.message 
-          : "Gagal melakukan registrasi";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Gagal melakukan registrasi";
+
       throw new Error(errorMessage);
     }
   }
@@ -115,13 +114,15 @@ export class AuthService {
    * @param provider OAuth provider name
    * @returns Promise resolving to authenticated user or null
    */
-  static async loginWithOAuth(provider: 'google' | 'apple' | 'github'): Promise<AuthUser | null> {
+  static async loginWithOAuth(
+    provider: "google" | "apple" | "github"
+  ): Promise<AuthUser | null> {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: 'cultour://oauth-callback', // Custom deep link
-          scopes: provider === 'google' ? 'email profile' : undefined,
+          redirectTo: "cultour://oauth-callback", // Custom deep link
+          scopes: provider === "google" ? "email profile" : undefined,
         },
       });
 
@@ -131,11 +132,11 @@ export class AuthService {
 
       return null; // OAuth redirects, so we return null here
     } catch (error) {
-      const errorMessage = 
-        error instanceof Error 
-          ? error.message 
+      const errorMessage =
+        error instanceof Error
+          ? error.message
           : `Gagal login dengan ${provider}`;
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -156,7 +157,7 @@ export class AuthService {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'cultour://reset-password', // Custom deep link
+        redirectTo: "cultour://reset-password", // Custom deep link
       });
 
       if (error) {
@@ -165,11 +166,11 @@ export class AuthService {
 
       return true;
     } catch (error) {
-      const errorMessage = 
-        error instanceof Error 
-          ? error.message 
+      const errorMessage =
+        error instanceof Error
+          ? error.message
           : "Gagal mengirim email reset password";
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -184,11 +185,9 @@ export class AuthService {
         throw new Error(error.message || "Gagal logout");
       }
     } catch (error) {
-      const errorMessage = 
-        error instanceof Error 
-          ? error.message 
-          : "Gagal logout";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "Gagal logout";
+
       throw new Error(errorMessage);
     }
   }
@@ -198,7 +197,9 @@ export class AuthService {
    */
   static async getCurrentUser(): Promise<AuthUser | null> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       return user ? this.mapSupabaseUserToAuthUser(user) : null;
     } catch (error) {
@@ -216,11 +217,9 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      phone: user.phone,
-      display_name: user.user_metadata?.display_name,
+      role: user.role,
+      fullname: user.user_metadata?.fullname,
       avatar_url: user.user_metadata?.avatar_url,
-      is_anonymous: user.is_anonymous,
-      is_sso_user: user.app_metadata?.is_sso_user,
     };
   }
-} 
+}

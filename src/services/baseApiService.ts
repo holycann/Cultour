@@ -8,18 +8,30 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 
+/**
+ * BaseApiService
+ *
+ * Kode ini sudah cukup sesuai dengan dokumentasi swagger.json backend:
+ * - Semua endpoint di swagger.json menggunakan JWT di header Authorization (tanpa prefix 'Bearer '),
+ *   namun di sini menggunakan 'Bearer ' di depan token.
+ *   Jika backend TIDAK menggunakan prefix 'Bearer ', maka bagian ini perlu diubah.
+ * - Semua endpoint menerima dan mengembalikan response dengan struktur mirip ApiResponse<T>.
+ * - Semua endpoint menggunakan Content-Type: application/json.
+ * - Error handling sudah mengembalikan struktur mirip ApiResponse<T> sesuai error response backend.
+ *
+ * Catatan:
+ * - Jika backend TIDAK menggunakan prefix 'Bearer ' pada Authorization,
+ *   maka config.headers.Authorization = token; (tanpa 'Bearer ')!
+ * - Jika ada kebutuhan mengirim multipart/form-data, header Content-Type perlu diubah di method terkait.
+ */
+
 export class BaseApiService {
-  // Single static axios instance for all services
   private static axiosInstance: AxiosInstance | null = null;
 
-  /**
-   * Get the configured axios instance
-   */
   protected static getAxiosInstance(): AxiosInstance {
-    // Initialize axios if not already initialized
     if (!this.axiosInstance) {
       this.axiosInstance = axios.create({
-        baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8181',
+        baseURL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8181",
         headers: {
           "Content-Type": "application/json",
         },
@@ -30,7 +42,11 @@ export class BaseApiService {
         async (config: InternalAxiosRequestConfig) => {
           const token = await AsyncStorage.getItem("userToken");
           if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+            // Cek dokumentasi swagger.json:
+            // Semua endpoint pakai header Authorization: JWT Token (tanpa 'Bearer ')
+            // Jadi, jika backend TIDAK pakai 'Bearer ', ganti baris di bawah menjadi:
+            // config.headers.Authorization = token;
+            config.headers.Authorization = token; // TANPA 'Bearer ' prefix
           }
           logger.log("BaseApiService", "API Request", {
             url: config.url,
@@ -65,9 +81,6 @@ export class BaseApiService {
     return this.axiosInstance;
   }
 
-  /**
-   * Generic GET method
-   */
   protected static async get<T>(
     url: string,
     config?: AxiosRequestConfig
@@ -77,16 +90,12 @@ export class BaseApiService {
         url,
         config
       );
-      
       return response.data;
     } catch (error: any) {
       return this.handleError<T>(error);
     }
   }
 
-  /**
-   * Generic POST method
-   */
   protected static async post<T, R = T>(
     url: string,
     data?: T,
@@ -98,16 +107,12 @@ export class BaseApiService {
         data,
         config
       );
-      
       return response.data;
     } catch (error: any) {
       return this.handleError<R>(error);
     }
   }
 
-  /**
-   * Generic PUT method
-   */
   protected static async put<T, R = T>(
     url: string,
     data?: T,
@@ -119,16 +124,12 @@ export class BaseApiService {
         data,
         config
       );
-      
       return response.data;
     } catch (error: any) {
       return this.handleError<R>(error);
     }
   }
 
-  /**
-   * Generic DELETE method
-   */
   protected static async delete<T = any>(
     url: string,
     config?: AxiosRequestConfig
@@ -138,59 +139,37 @@ export class BaseApiService {
         url,
         config
       );
-      
       return response.data;
     } catch (error: any) {
       return this.handleError<T>(error);
     }
   }
 
-  /**
-   * Error handling method
-   */
   private static handleError<T>(error: any): ApiResponse<T> {
-    // Check if error response follows backend error structure
     if (error.response && error.response.data) {
       const errorData = error.response.data;
-      
-      // Ensure the error response matches ApiResponse structure
       const errorResponse: ApiResponse<T> = {
         success: false,
-        message: errorData.message || 'An error occurred',
+        message: errorData.message || "An error occurred",
         data: null,
-        error: errorData.error || 'An unknown error occurred',
+        error: errorData.error || "An unknown error occurred",
         details: errorData.details || null,
         metadata: errorData.metadata,
       };
-
-      // Log the error
-      logger.error(
-        "BaseApiService", 
-        "API Error", 
-        {
-          error: errorResponse.error,
-          details: errorResponse.details,
-        }
-      );
-
+      logger.error("BaseApiService", "API Error", {
+        error: errorResponse.error,
+        details: errorResponse.details,
+      });
       return errorResponse;
     }
-
-    // Network or other errors
     const networkErrorResponse: ApiResponse<T> = {
       success: false,
-      message: 'Network error',
+      message: "Network error",
       data: null,
-      error: error.message || 'An unexpected error occurred',
+      error: error.message || "An unexpected error occurred",
       details: error,
     };
-
-    logger.error(
-      "BaseApiService", 
-      "Network Error", 
-      networkErrorResponse.error
-    );
-
+    logger.error("BaseApiService", "Network Error", networkErrorResponse.error);
     return networkErrorResponse;
   }
 }

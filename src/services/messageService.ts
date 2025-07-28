@@ -12,20 +12,17 @@ export class MessageService extends BaseApiService {
    * @returns Promise resolving to AI chat message or null
    */
   static async askAiAboutEvent(
-    eventId: string, 
+    eventId: string,
     query: string
   ): Promise<AiChatMessage | null> {
     try {
       const response = await this.post<
-        { event_id: string; query: string }, 
+        { event_id: string; query: string },
         AiChatMessage
-      >(
-        `/ask/event/${eventId}`,
-        { 
-          event_id: eventId, 
-          query: query 
-        }
-      );
+      >(`/ask/event/${eventId}`, {
+        event_id: eventId,
+        query: query,
+      });
 
       if (!response.success) {
         throw new Error(response.error || "Failed to get AI response");
@@ -45,17 +42,14 @@ export class MessageService extends BaseApiService {
    * @returns Promise resolving to discussion message or null
    */
   static async sendDiscussionMessage(
-    threadId: string, 
+    threadId: string,
     content: string
   ): Promise<DiscussionMessage | null> {
     try {
       const response = await this.post<
-        { thread_id: string; content: string }, 
+        { thread_id: string; content: string },
         DiscussionMessage
-      >(
-        "/messages",
-        { thread_id: threadId, content }
-      );
+      >("/messages", { thread_id: threadId, content });
 
       if (!response.success) {
         throw new Error(response.error || "Failed to send discussion message");
@@ -73,9 +67,13 @@ export class MessageService extends BaseApiService {
    * @param threadId Thread identifier
    * @returns Promise resolving to list of discussion messages
    */
-  static async fetchThreadMessages(threadId: string): Promise<DiscussionMessage[]> {
+  static async fetchThreadMessages(
+    threadId: string
+  ): Promise<DiscussionMessage[]> {
     try {
-      const response = await this.get<DiscussionMessage[]>(`/threads/${threadId}/messages`);
+      const response = await this.get<DiscussionMessage[]>(
+        `/threads/${threadId}/messages`
+      );
 
       if (!response.success) {
         throw new Error(response.error || "Failed to fetch thread messages");
@@ -87,4 +85,4 @@ export class MessageService extends BaseApiService {
       throw error;
     }
   }
-} 
+}

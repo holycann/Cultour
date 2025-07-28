@@ -219,7 +219,15 @@ export function EventProvider({ children }: EventProviderProps) {
    */
   const getEventById = useCallback(
     (eventId: string) => {
-      return state.events.find((event) => event.id === eventId);
+      const foundEvent = state.events.find((event) => event.id === eventId);
+
+      // Update the single event state
+      dispatch({
+        type: "SET_SINGLE_EVENT",
+        payload: foundEvent || null,
+      });
+
+      return foundEvent;
     },
     [state.events]
   );
@@ -245,6 +253,29 @@ export function EventProvider({ children }: EventProviderProps) {
   );
 
   /**
+   * Fetch single event by ID from API
+   */
+  const fetchSingleEvent = useCallback(
+    async (eventId: string) => {
+      dispatch({ type: "EVENT_START" });
+
+      try {
+        const response = await EventService.getEventById(eventId);
+
+        if (response) {
+          dispatch({
+            type: "SET_SINGLE_EVENT",
+            payload: response,
+          });
+        }
+      } catch (error) {
+        handleError(error, "Gagal mengambil detail event");
+      }
+    },
+    [handleError]
+  );
+
+  /**
    * Clear error state
    */
   const clearError = useCallback(() => {
@@ -263,6 +294,7 @@ export function EventProvider({ children }: EventProviderProps) {
       error: state.error,
       fetchEvents,
       fetchTrendingEvents,
+      fetchSingleEvent,
       createEvent,
       updateEvent,
       deleteEvent,
@@ -278,6 +310,7 @@ export function EventProvider({ children }: EventProviderProps) {
       state.error,
       fetchEvents,
       fetchTrendingEvents,
+      fetchSingleEvent,
       createEvent,
       updateEvent,
       deleteEvent,

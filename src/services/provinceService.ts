@@ -11,7 +11,13 @@ export class ProvinceService extends BaseApiService {
    */
   static async fetchProvinces(): Promise<Province[]> {
     try {
-      return await this.get<Province[]>('/provinces');
+      const response = await this.get<Province[]>('/provinces');
+      
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch provinces");
+      }
+
+      return response.data || [];
     } catch (error) {
       console.error("Failed to fetch provinces:", error);
       throw error;
@@ -25,7 +31,13 @@ export class ProvinceService extends BaseApiService {
    */
   static async getProvinceById(provinceId: string): Promise<Province | null> {
     try {
-      return await this.get<Province>(`/provinces/${provinceId}`);
+      const response = await this.get<Province>(`/provinces/${provinceId}`);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to get province by ID");
+      }
+
+      return response.data;
     } catch (error) {
       console.error("Failed to get province by ID:", error);
       throw error;
@@ -39,7 +51,17 @@ export class ProvinceService extends BaseApiService {
    */
   static async createProvince(provinceData: Partial<Province>): Promise<Province> {
     try {
-      return await this.post<Partial<Province>, Province>('/provinces', provinceData);
+      const response = await this.post<Partial<Province>, Province>('/provinces', provinceData);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create province");
+      }
+
+      if (!response.data) {
+        throw new Error("No province data returned");
+      }
+
+      return response.data;
     } catch (error) {
       console.error("Failed to create province:", error);
       throw error;
@@ -57,7 +79,17 @@ export class ProvinceService extends BaseApiService {
     provinceData: Partial<Province>
   ): Promise<Province> {
     try {
-      return await this.put<Partial<Province>, Province>(`/provinces/${provinceId}`, provinceData);
+      const response = await this.put<Partial<Province>, Province>(`/provinces/${provinceId}`, provinceData);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update province");
+      }
+
+      if (!response.data) {
+        throw new Error("No province data returned");
+      }
+
+      return response.data;
     } catch (error) {
       console.error("Failed to update province:", error);
       throw error;
@@ -71,7 +103,12 @@ export class ProvinceService extends BaseApiService {
    */
   static async deleteProvince(provinceId: string): Promise<boolean> {
     try {
-      await this.delete(`/provinces/${provinceId}`);
+      const response = await this.delete(`/provinces/${provinceId}`);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to delete province");
+      }
+
       return true;
     } catch (error) {
       console.error("Failed to delete province:", error);
@@ -86,7 +123,13 @@ export class ProvinceService extends BaseApiService {
    */
   static async fetchProvincesByRegion(regionId: string): Promise<Province[]> {
     try {
-      return await this.get<Province[]>(`/regions/${regionId}/provinces`);
+      const response = await this.get<Province[]>(`/regions/${regionId}/provinces`);
+      
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch provinces by region");
+      }
+
+      return response.data || [];
     } catch (error) {
       console.error("Failed to fetch provinces by region:", error);
       throw error;

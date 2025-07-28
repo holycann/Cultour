@@ -50,7 +50,7 @@ export default function PlaceList() {
           <TouchableOpacity
             key={city.id}
             className="flex-row items-center mb-6"
-            onPress={() => router.push(`/place/${city.name}`)}
+            onPress={() => router.push(`/place/${city.id}`)}
           >
             <Image
               source={{ uri: city.image_url || "" }}
@@ -84,7 +84,7 @@ export default function PlaceList() {
                   className="text-[#1A1A1A] opacity-70"
                   style={Typography.styles.body}
                 >
-                  {city.province}
+                  {city.Province?.name}
                 </Text>
               </View>
               <Text className="text-2xl text-[#1A1A1A] font-bold opacity-50 ml-3">

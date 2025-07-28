@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "@iconify/react";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
@@ -19,13 +19,21 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
   };
 
   return (
-    <View className="flex-row items-center px-4 py-3 bg-[#FFF5E1]">
+    <View className="relative flex-row items-center justify-center px-4 py-4 bg-[#EEC887]">
       {showBackButton && (
-        <TouchableOpacity onPress={handleGoBack} className="mr-4">
-          <Ionicons name="chevron-back" size={24} color="#4E7D79" />
+        <TouchableOpacity
+          onPress={handleGoBack}
+          className="absolute left-4 top-1/2 -translate-y-1/2"
+        >
+          <Icon
+            icon="mdi:arrow-left-circle-outline"
+            width={30}
+            height={30}
+            color="#4E7D79"
+          />
         </TouchableOpacity>
       )}
-      <Text className="text-xl font-bold text-[#4E7D79] flex-1">{title}</Text>
+      <Text className="text-xl font-bold text-[#1E1E1E]">{title}</Text>
     </View>
   );
 };

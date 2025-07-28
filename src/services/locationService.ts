@@ -11,7 +11,8 @@ export class LocationService extends BaseApiService {
    */
   static async fetchLocations(): Promise<Location[]> {
     try {
-      return await this.get<Location[]>('/locations');
+      const response = await this.get<Location[]>('/locations');
+      return response.data || []; // Return empty array if data is null
     } catch (error) {
       console.error("Failed to fetch locations:", error);
       throw error;
@@ -25,7 +26,8 @@ export class LocationService extends BaseApiService {
    */
   static async fetchLocationsByCity(cityId: string): Promise<Location[]> {
     try {
-      return await this.get<Location[]>(`/cities/${cityId}/locations`);
+      const response = await this.get<Location[]>(`/cities/${cityId}/locations`);
+      return response.data || []; // Return data from response
     } catch (error) {
       console.error("Failed to fetch locations by city:", error);
       throw error;
@@ -39,7 +41,8 @@ export class LocationService extends BaseApiService {
    */
   static async getLocationById(locationId: string): Promise<Location | null> {
     try {
-      return await this.get<Location>(`/locations/${locationId}`);
+      const response = await this.get<Location>(`/locations/${locationId}`);
+      return response.data || null; // Return data from response
     } catch (error) {
       console.error("Failed to get location by ID:", error);
       throw error;
@@ -53,7 +56,8 @@ export class LocationService extends BaseApiService {
    */
   static async createLocation(locationData: Partial<Location>): Promise<Location> {
     try {
-      return await this.post<Partial<Location>, Location>('/locations', locationData);
+      const response = await this.post<Partial<Location>, Location>('/locations', locationData);
+      return response.data as Location; // Assert data as Location
     } catch (error) {
       console.error("Failed to create location:", error);
       throw error;
@@ -71,7 +75,8 @@ export class LocationService extends BaseApiService {
     locationData: Partial<Location>
   ): Promise<Location> {
     try {
-      return await this.put<Partial<Location>, Location>(`/locations/${locationId}`, locationData);
+      const response = await this.put<Partial<Location>, Location>(`/locations/${locationId}`, locationData);
+      return response.data as Location; // Assert data as Location
     } catch (error) {
       console.error("Failed to update location:", error);
       throw error;
@@ -100,7 +105,8 @@ export class LocationService extends BaseApiService {
    */
   static async fetchLocationsByProvince(provinceId: string): Promise<Location[]> {
     try {
-      return await this.get<Location[]>(`/provinces/${provinceId}/locations`);
+      const response = await this.get<Location[]>(`/provinces/${provinceId}/locations`);
+      return response.data || []; // Return data from response
     } catch (error) {
       console.error("Failed to fetch locations by province:", error);
       throw error;

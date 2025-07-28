@@ -122,7 +122,7 @@ export default function HomeScreen() {
                   logger.log("HomeScreen", "Event Pressed", {
                     eventId: item.id,
                   });
-                  router.push(`/event/${item.name}` as any);
+                  router.push(`/event/${item.id}` as any);
                 }}
               >
                 <Image
@@ -175,7 +175,7 @@ export default function HomeScreen() {
               }}
               onPress={() => {
                 logger.log("HomeScreen", "City Pressed", { cityId: city.id });
-                router.push(`/place/${city.name}` as any);
+                router.push(`/place/${city.id}` as any);
               }}
             >
               <View className="flex-1">
@@ -189,7 +189,7 @@ export default function HomeScreen() {
                   className="text-[#1A1A1A] opacity-70"
                   style={Typography.styles.body}
                 >
-                  {city.province}
+                  {city.Province?.name}
                 </Text>
               </View>
               <Text className="text-2xl text-[#1A1A1A] font-bold opacity-50 ml-3">

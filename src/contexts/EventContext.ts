@@ -16,6 +16,7 @@ export interface EventContextType {
     isKidFriendly?: boolean;
   }) => Promise<void>;
   fetchTrendingEvents: () => Promise<void>;
+  fetchSingleEvent: (eventId: string) => Promise<void>;
   createEvent: (eventData: Partial<Event>) => Promise<boolean>;
   updateEvent: (eventId: string, eventData: Partial<Event>) => Promise<boolean>;
   deleteEvent: (eventId: string) => Promise<boolean>;
