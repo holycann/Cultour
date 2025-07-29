@@ -1,14 +1,11 @@
 import DetailHeader from "@/app/components/DetailHeader";
+import Maps from "@/components/Maps";
+import { useCity } from "@/hooks/useCity";
 import { useEvent } from "@/hooks/useEvent";
-import { Dimensions } from "react-native";
-
-import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useProvince } from "@/hooks/useProvince";
 import {
   Alert,
+  Dimensions,
   Image,
   Platform,
   ScrollView,
@@ -18,6 +15,14 @@ import {
   View,
 } from "react-native";
 
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+
+import { Picker } from "@react-native-picker/picker";
+
 export default function AddEventScreen() {
   const router = useRouter();
   const [eventTitle, setEventTitle] = useState("");
@@ -26,16 +31,39 @@ export default function AddEventScreen() {
   const [endDate, setEndDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
-  const [province, setProvince] = useState("");
-  const [city, setCity] = useState("");
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
   const [image, setImage] = useState<string | null>(null);
-
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    latitude?: number;
+    longitude?: number;
+    name?: string;
+  }>({});
+  const [isFullScreenMapVisible, setIsFullScreenMapVisible] = useState(false);
 
   const { createEvent } = useEvent();
+  const { provinces, fetchProvinces } = useProvince();
+  const { cities, fetchCities } = useCity();
+
+  // Fetch provinces and cities only once when the component first loads
+  React.useEffect(() => {
+    if (provinces.length === 0) {
+      fetchProvinces();
+    }
+
+    if (cities.length === 0) {
+      fetchCities();
+    }
+  }, []);
+
+  // Filter kota berdasarkan provinsi yang dipilih
+  const filteredCities = cities.filter(
+    (c) => c.province_id === selectedProvince
+  );
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -51,8 +79,44 @@ export default function AddEventScreen() {
   };
 
   const handleNext = async () => {
-    if (!eventTitle || !eventDescription || !province || !city || !image) {
-      Alert.alert("Error", "Harap isi semua field");
+    // Validasi semua field
+    const validations = [
+      { value: eventTitle, message: "Judul Event" },
+      { value: eventDescription, message: "Deskripsi Event" },
+      { value: selectedProvince, message: "Provinsi" },
+      { value: selectedCity, message: "Kota" },
+      { value: image, message: "Gambar Pendukung" },
+      { 
+        value: selectedLocation.latitude && selectedLocation.longitude, 
+        message: "Lokasi Event" 
+      },
+    ];
+
+    // Cek field yang kosong
+    const emptyFields = validations
+      .filter((validation) => !validation.value)
+      .map((validation) => validation.message);
+
+    if (emptyFields.length > 0) {
+      Alert.alert(
+        "Error", 
+        `Harap isi field berikut:\n${emptyFields.join(", ")}`
+      );
+      return;
+    }
+
+    // Validasi tanggal
+    if (startDate > endDate) {
+      Alert.alert("Error", "Tanggal mulai tidak boleh lebih dari tanggal selesai");
+      return;
+    }
+
+    // Validasi waktu jika tanggal sama
+    if (
+      startDate.toDateString() === endDate.toDateString() &&
+      startTime > endTime
+    ) {
+      Alert.alert("Error", "Waktu mulai tidak boleh lebih dari waktu selesai");
       return;
     }
 
@@ -60,9 +124,23 @@ export default function AddEventScreen() {
       const eventData = {
         title: eventTitle,
         description: eventDescription,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        location: `${city}, ${province}`,
+        startDate: new Date(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate(),
+          startTime.getHours(),
+          startTime.getMinutes()
+        ).toISOString(),
+        endDate: new Date(
+          endDate.getFullYear(),
+          endDate.getMonth(),
+          endDate.getDate(),
+          endTime.getHours(),
+          endTime.getMinutes()
+        ).toISOString(),
+        location: selectedLocation.name || `${selectedCity}, ${selectedProvince}`,
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
         images: [image],
       };
 
@@ -70,7 +148,7 @@ export default function AddEventScreen() {
 
       if (response) {
         Alert.alert("Sukses", "Event berhasil dibuat");
-        router.push("/dashboard/event");
+        router.push("/event");
       } else {
         Alert.alert("Error", "Gagal membuat event");
       }
@@ -110,18 +188,6 @@ export default function AddEventScreen() {
               multiline: true,
               height: "h-32",
             },
-            {
-              label: "Province",
-              value: province,
-              setter: setProvince,
-              placeholder: "West Java",
-            },
-            {
-              label: "City",
-              value: city,
-              setter: setCity,
-              placeholder: "Bandung",
-            },
           ].map(
             ({ label, value, setter, placeholder, multiline, height }, i) => (
               <View className="mb-4" key={i}>
@@ -142,6 +208,92 @@ export default function AddEventScreen() {
                 </View>
               </View>
             )
+          )}
+
+          {/* Province Dropdown */}
+          <View className="mb-4">
+            <Text className="mb-2 text-[#1E1E1E]">Province</Text>
+            <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
+              <Picker
+                selectedValue={selectedProvince}
+                onValueChange={(itemValue) => {
+                  setSelectedProvince(itemValue);
+                  setSelectedCity(""); // Reset kota saat provinsi berubah
+                }}
+              >
+                <Picker.Item label="Pilih Provinsi" value="" />
+                {provinces.map((prov) => (
+                  <Picker.Item
+                    key={prov.id}
+                    label={prov.name}
+                    value={prov.id}
+                  />
+                ))}
+              </Picker>
+            </View>
+          </View>
+
+          {/* City Dropdown */}
+          <View className="mb-4">
+            <Text className="mb-2 text-[#1E1E1E]">City</Text>
+            <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
+              <Picker
+                selectedValue={selectedCity}
+                onValueChange={(itemValue) => setSelectedCity(itemValue)}
+                enabled={!!selectedProvince}
+              >
+                <Picker.Item
+                  label={
+                    selectedProvince
+                      ? "Pilih Kota"
+                      : "Pilih Provinsi Terlebih Dahulu"
+                  }
+                  value=""
+                />
+                {filteredCities.map((cityItem) => (
+                  <Picker.Item
+                    key={cityItem.id}
+                    label={cityItem.name}
+                    value={cityItem.id}
+                  />
+                ))}
+              </Picker>
+            </View>
+          </View>
+
+          {/* Location Preview */}
+          <View className="mb-4">
+            <Text className="mb-2 text-[#1E1E1E]">Lokasi Event</Text>
+            <TouchableOpacity 
+              onPress={() => setIsFullScreenMapVisible(true)}
+              className="bg-white rounded-xl px-4 py-3"
+              style={shadowStyle}
+            >
+              <Text className="text-[#1E1E1E]">
+                {selectedLocation.name 
+                  ? selectedLocation.name 
+                  : "Pilih Lokasi Event"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Maps Preview */}
+          <Maps 
+            onLocationSelect={(location) => {
+              setSelectedLocation(location);
+            }}
+          />
+
+          {/* Full Screen Maps Modal */}
+          {isFullScreenMapVisible && (
+            <Maps 
+              isFullScreen={true}
+              onLocationSelect={(location) => {
+                setSelectedLocation(location);
+                setIsFullScreenMapVisible(false);
+              }}
+              onClose={() => setIsFullScreenMapVisible(false)}
+            />
           )}
 
           {/* Date */}

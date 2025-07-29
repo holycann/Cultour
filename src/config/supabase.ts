@@ -8,8 +8,10 @@ import { createClient, processLock } from '@supabase/supabase-js'
 import { AppState } from 'react-native'
 import 'react-native-url-polyfill/auto'
 
-const supabaseUrl = "https://rhfhplcxngijmfanrxzo.supabase.co"
-const supabaseAnonKey = "sb_publishable_lADF6jo96h4Ru3J_355xcQ_RlsyYReD"
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLIC_API_KEY
+
+console.log("SUPABASE:", supabaseUrl)
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

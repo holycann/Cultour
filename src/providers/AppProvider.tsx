@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Import all providers
@@ -15,6 +15,8 @@ import { UserProvider } from "./UserProvider";
 
 import { ErrorBoundary } from "./ErrorBoundary";
 
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
 interface AppProviderProps {
   children: React.ReactNode;
 }
@@ -24,31 +26,40 @@ interface AppProviderProps {
  * This ensures proper context hierarchy and organization
  */
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
+  useEffect(() => {
+    console.log("AppProvider: Mounted");
+    return () => {
+      console.log("AppProvider: Unmounted");
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <UserProvider>
-          <ThreadProvider>
-            <MessageProvider>
-              <LocationProvider>
-                <EventProvider>
-                  <CityProvider>
-                    <BadgeProvider>
-                      <ProvinceProvider>
-                        <AiProvider>
-                          <GestureHandlerRootView style={{ flex: 1 }}>
-                            {children}
-                          </GestureHandlerRootView>
-                        </AiProvider>
-                      </ProvinceProvider>
-                    </BadgeProvider>
-                  </CityProvider>
-                </EventProvider>
-              </LocationProvider>
-            </MessageProvider>
-          </ThreadProvider>
-        </UserProvider>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <AuthProvider>
+            <UserProvider>
+              <ThreadProvider>
+                <MessageProvider>
+                  <LocationProvider>
+                    <EventProvider>
+                      <CityProvider>
+                        <BadgeProvider>
+                          <ProvinceProvider>
+                            <AiProvider>
+                              {children}
+                            </AiProvider>
+                          </ProvinceProvider>
+                        </BadgeProvider>
+                      </CityProvider>
+                    </EventProvider>
+                  </LocationProvider>
+                </MessageProvider>
+              </ThreadProvider>
+            </UserProvider>
+          </AuthProvider>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 };

@@ -1,4 +1,4 @@
-import { CommonColors } from "@/constants/Colors";
+import Colors from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 
 /**
@@ -16,7 +16,7 @@ export const tabConfig = {
     {
       name: "search",
       title: "Cari",
-      icon: "search-outline", 
+      icon: "search-outline",
       activeIcon: "search",
     },
     {
@@ -35,9 +35,9 @@ export const tabConfig = {
 
   // Tab bar styling
   style: {
-    backgroundColor: CommonColors.white,
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
-    borderTopColor: CommonColors.gray200,
+    borderTopColor: Colors.primary,
     paddingTop: 5,
     paddingBottom: 5,
     height: 60,

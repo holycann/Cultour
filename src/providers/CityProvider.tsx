@@ -60,6 +60,7 @@ interface CityProviderProps {
 export function CityProvider({ children }: CityProviderProps) {
   const [state, dispatch] = useReducer(cityReducer, initialState);
 
+
   /**
    * Handle any API errors
    */
@@ -84,6 +85,7 @@ export function CityProvider({ children }: CityProviderProps) {
         type: "CITY_SUCCESS", 
         payload: data 
       });
+
     } catch (error) {
       handleError(error, "Gagal mengambil daftar kota");
     }

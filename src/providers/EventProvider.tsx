@@ -129,6 +129,7 @@ export function EventProvider({ children }: EventProviderProps) {
         type: "TRENDING_EVENT_SUCCESS",
         payload: response,
       });
+
     } catch (error) {
       handleError(error, "Gagal mengambil daftar trending event");
     }

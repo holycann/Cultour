@@ -3,16 +3,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "strict": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     }
   },
-  "include": [
-    "src",
-    "**/*.ts",
-    "**/*.tsx",
-    "nativewind-env.d.ts"
-  ]
+  "include": ["src", "**/*.ts", "**/*.tsx", "nativewind-env.d.ts"]
 }

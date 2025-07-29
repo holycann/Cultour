@@ -1,21 +1,17 @@
+import DetailHeader from "@/app/components/DetailHeader";
 import { useEvent } from "@/hooks/useEvent";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import DetailHeader from "@/app/components/DetailHeader";
 import React, { useEffect } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function EventDetailScreen() {
   const router = useRouter();
   const { _id: eventID } = useLocalSearchParams<{ _id: string }>();
-  const { event, getEventById, fetchSingleEvent } = useEvent();
+  const { event, getEventById } = useEvent();
 
   useEffect(() => {
     if (eventID) {
-      const localEvent = getEventById(eventID);
-      if (!localEvent) {
-        fetchSingleEvent(eventID);
-      }
+      getEventById(eventID);
     }
   }, [eventID]);
 

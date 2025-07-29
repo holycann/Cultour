@@ -52,7 +52,7 @@ export default function BottomNav({
 
     switch (tabName) {
       case "home":
-        router.replace("/(tabs)/home");
+        router.replace("/(tabs)");
         break;
       case "place":
         router.replace("/(tabs)/place");

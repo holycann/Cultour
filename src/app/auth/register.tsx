@@ -73,7 +73,7 @@ export default function RegisterPage() {
 
       if (result) {
         logger.log("RegisterPage", "Registration Successful");
-        router.replace("/(tabs)/home");
+        router.replace("/(tabs)");
       } else {
         logger.error(
           "RegisterPage",

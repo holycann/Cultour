@@ -37,7 +37,7 @@ export default function LoginPage() {
 
       if (result) {
         logger.log("LoginPage", "Login Successful");
-        router.replace("/(tabs)/home");
+        router.replace("/(tabs)");
       } else {
         logger.error("LoginPage", "Login Failed", null);
         Alert.alert("Login Failed", "Invalid email or password");

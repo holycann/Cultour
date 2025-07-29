@@ -25,6 +25,8 @@ export class BaseApiService {
         },
       });
 
+      console.log("Base URL:", this.axiosInstance.defaults.baseURL);
+
       // Request interceptor for adding auth token
       this.axiosInstance.interceptors.request.use(
         async (config: InternalAxiosRequestConfig) => {
