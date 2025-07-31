@@ -94,7 +94,7 @@ export function UserProvider({ children }: UserProviderProps) {
         const userData = await UserService.getUser(userId);
 
         // Fetch user profile
-        const profileData = await UserService.getUserProfile(userId);
+        const profileData = await UserService.getUserProfile();
 
         dispatch({
           type: "USER_SUCCESS",
@@ -129,8 +129,6 @@ export function UserProvider({ children }: UserProviderProps) {
           bio: profileData.bio ?? state.profile.bio,
           avatar_url: profileData.avatar_url ?? state.profile.avatar_url,
         };
-
-        console.log("Sending profile payload:", payload); // Optional: debug
 
         await UserService.updateProfile(
           state.profile.id,
@@ -196,12 +194,12 @@ export function UserProvider({ children }: UserProviderProps) {
       dispatch({ type: "USER_START" });
 
       try {
-        // Ensure we have a user_id
-        if (!state.user?.id) {
+        // Ensure we have a user_id and profile_id
+        if (!state.user?.id || !state.profile?.id) {
           throw new Error("Pengguna tidak terautentikasi");
         }
 
-        await UserService.uploadAvatar(state.user.id, avatarFile);
+        await UserService.uploadAvatar(state.profile.id, avatarFile);
 
         // Refetch profile dari backend agar avatar dan data lain sinkron
         await fetchUserProfile(state.user.id);
@@ -213,7 +211,37 @@ export function UserProvider({ children }: UserProviderProps) {
         return false;
       }
     },
-    [state.user, handleError, fetchUserProfile]
+    [state.user, state.profile, handleError, fetchUserProfile]
+  );
+
+  /**
+   * Upload identity
+   */
+  const uploadIdentity = useCallback(
+    async (
+      identityFile: File | { uri: string; type?: string; name?: string }
+    ) => {
+      dispatch({ type: "USER_START" });
+
+      try {
+        // Ensure we have a user_id and profile_id
+        if (!state.user?.id || !state.profile?.id) {
+          throw new Error("Pengguna tidak terautentikasi");
+        }
+
+        await UserService.verifyIdentity(state.profile.id, identityFile);
+
+        // Refetch profile dari backend agar avatar dan data lain sinkron
+        await fetchUserProfile(state.user.id);
+
+        showDialogSuccess("Berhasil", "Identity berhasil diperbarui");
+        return true;
+      } catch (error) {
+        handleError(error, "Gagal mengunggah identity");
+        return false;
+      }
+    },
+    [state.user, state.profile, handleError, fetchUserProfile]
   );
 
   /**
@@ -236,6 +264,7 @@ export function UserProvider({ children }: UserProviderProps) {
       updateProfile,
       updateUser,
       uploadAvatar,
+      uploadIdentity,
       clearError,
     }),
     [
@@ -247,6 +276,7 @@ export function UserProvider({ children }: UserProviderProps) {
       updateProfile,
       updateUser,
       uploadAvatar,
+      uploadIdentity,
       clearError,
     ]
   );

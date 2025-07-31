@@ -4,19 +4,19 @@ import { useMessage } from "@/hooks/useMessage";
 import { useThread } from "@/hooks/useThread";
 import { DiscussionMessage } from "@/types/Message";
 import { Thread } from "@/types/Thread";
-import { Icon } from "@iconify/react";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    FlatList,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function DiscussionScreen() {
@@ -132,7 +132,7 @@ export default function DiscussionScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#EEC887]">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
       <DetailHeader title="Discussion" />
 
       <KeyboardAvoidingView
@@ -189,7 +189,7 @@ export default function DiscussionScreen() {
                 onPress={handleSendMessage}
                 className="bg-[#4E7D79] rounded-full p-2"
               >
-                <Icon icon="mdi:send" width={24} height={24} color="white" />
+                <Ionicons name="send" size={24} color="white" />
               </TouchableOpacity>
             </View>
           </View>

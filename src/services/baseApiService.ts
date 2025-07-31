@@ -7,6 +7,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+import { AuthService } from "./authService";
 
 export class BaseApiService {
   // Single static axios instance for all services
@@ -19,7 +20,11 @@ export class BaseApiService {
     // Initialize axios if not already initialized
     if (!this.axiosInstance) {
       this.axiosInstance = axios.create({
-        baseURL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8181",
+        baseURL:
+          process.env.EXPO_PUBLIC_API_URL ||
+          process.env.EXPO_PUBLIC_ANDROID_API_URL ||
+          "http://localhost:8181",
+        timeout: 15000,
         headers: {
           "Content-Type": "application/json",
         },
@@ -30,15 +35,24 @@ export class BaseApiService {
       // Request interceptor for adding auth token
       this.axiosInstance.interceptors.request.use(
         async (config: InternalAxiosRequestConfig) => {
-          const token = await AsyncStorage.getItem("userToken");
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+          try {
+            // Always get the latest token from AuthService (single source of truth)
+            let token = await AuthService.getAuthToken();
+
+            if (token) {
+              // Cache token in AsyncStorage for fallback (optional, but not as source of truth)
+              await AsyncStorage.setItem("userToken", token);
+              config.headers.Authorization = `Bearer ${token}`;
+            } else {
+              // Fallback: try to get from AsyncStorage if AuthService fails
+              token = await AsyncStorage.getItem("userToken");
+              if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+              }
+            }
+          } catch (error) {
+            logger.error("BaseApiService", "Token Retrieval Error", error);
           }
-          logger.log("BaseApiService", "API Request", {
-            url: config.url,
-            method: config.method,
-            headers: config.headers,
-          });
           return config;
         },
         (error) => {
@@ -54,12 +68,32 @@ export class BaseApiService {
             url: response.config.url,
             method: response.config.method,
             status: response.status,
-            data: response.data,
           });
           return response;
         },
-        (error) => {
+        async (error) => {
           logger.error("BaseApiService", "API Response Error", error);
+
+          // Check for invalid/expired token (401/403)
+          if (
+            error.response &&
+            (error.response.status === 401 || error.response.status === 403)
+          ) {
+            try {
+              // Attempt to refresh token
+              const newToken = await AuthService.getAuthToken();
+              if (newToken) {
+                await AsyncStorage.setItem("userToken", newToken);
+              }
+            } catch (refreshError) {
+              logger.error(
+                "BaseApiService",
+                "Token Refresh Error",
+                refreshError
+              );
+            }
+          }
+
           return Promise.reject(error);
         }
       );
@@ -68,83 +102,115 @@ export class BaseApiService {
   }
 
   /**
-   * Generic GET method
+   * handle request, retry if token expired, and error handling
+   * @param fn Axios request function (get, post, put, delete)
+   * @param args Arguments for the axios function
+   * @param retryArgs Optional: arguments for retry (for post/put)
    */
-  protected static async get<T>(
-    url: string,
-    config?: AxiosRequestConfig
+  private static async requestWithRetry<T>(
+    fn: (...args: any[]) => Promise<AxiosResponse<ApiResponse<T>>>,
+    args: any[],
+    retryArgs?: any[]
   ): Promise<ApiResponse<T>> {
     try {
-      const response = await this.getAxiosInstance().get<ApiResponse<T>>(
-        url,
-        config
-      );
-
+      // Do the request
+      const response = await fn(...args);
       return response.data;
     } catch (error: any) {
+      // If error is invalid token, try to refresh token and retry once
+      if (
+        error.response &&
+        (error.response.status === 401 || error.response.status === 403)
+      ) {
+        try {
+          const newToken = await AuthService.getAuthToken();
+          if (newToken) {
+            await AsyncStorage.setItem("userToken", newToken);
+            // Retry the request with new token
+            const retryResponse = await fn(...(retryArgs ?? args));
+            return retryResponse.data;
+          }
+        } catch (refreshError) {
+          // Log refresh error with context
+          logger.error(
+            "BaseApiService",
+            `Token Refresh Error (${fn.name.toUpperCase()})`,
+            refreshError
+          );
+        }
+      }
+      // Handle error in a unified way
       return this.handleError<T>(error);
     }
   }
 
   /**
-   * Generic POST method
+   * Perform GET request
+   * @param url Endpoint URL
+   * @param config Optional axios request configuration
+   * @returns Promise with response data
+   */
+  protected static async get<T>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
+    // Use DRY helper for GET
+    return this.requestWithRetry<T>(this.getAxiosInstance().get, [url, config]);
+  }
+
+  /**
+   * Perform POST request
+   * @param url Endpoint URL
+   * @param data Request payload
+   * @param config Optional axios request configuration
+   * @returns Promise with response data
    */
   protected static async post<T, R = T>(
     url: string,
     data?: T,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<R>> {
-    try {
-      const response = await this.getAxiosInstance().post<ApiResponse<R>>(
-        url,
-        data,
-        config
-      );
-
-      return response.data;
-    } catch (error: any) {
-      return this.handleError<R>(error);
-    }
+    return this.requestWithRetry<R>(this.getAxiosInstance().post, [
+      url,
+      data,
+      config,
+    ]);
   }
 
   /**
-   * Generic PUT method
+   * Perform PUT request
+   * @param url Endpoint URL
+   * @param data Request payload
+   * @param config Optional axios request configuration
+   * @returns Promise with response data
    */
   protected static async put<T, R = T>(
     url: string,
     data?: T,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<R>> {
-    try {
-      const response = await this.getAxiosInstance().put<ApiResponse<R>>(
-        url,
-        data,
-        config
-      );
-
-      return response.data;
-    } catch (error: any) {
-      return this.handleError<R>(error);
-    }
+    return this.requestWithRetry<R>(this.getAxiosInstance().put, [
+      url,
+      data,
+      config,
+    ]);
   }
 
   /**
-   * Generic DELETE method
+   * Perform DELETE request
+   * @param url Endpoint URL
+   * @param config Optional axios request configuration
+   * @returns Promise with response data
    */
   protected static async delete<T = any>(
     url: string,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
-    try {
-      const response = await this.getAxiosInstance().delete<ApiResponse<T>>(
-        url,
-        config
-      );
-
-      return response.data;
-    } catch (error: any) {
-      return this.handleError<T>(error);
-    }
+    // Use DRY helper for DELETE
+    return this.requestWithRetry<T>(this.getAxiosInstance().delete, [
+      url,
+      config,
+    ]);
   }
 
   /**

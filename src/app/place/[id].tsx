@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -28,7 +28,7 @@ export default function EventScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#FFF5E1] justify-center items-center">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#FFF5E1] justify-center items-center">
         <ActivityIndicator size="large" color="#4E7D79" />
       </SafeAreaView>
     );
@@ -36,14 +36,14 @@ export default function EventScreen() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-[#FFF5E1] justify-center items-center">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#FFF5E1] justify-center items-center">
         <Text className="text-red-500">{error}</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#EEC887]">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
       <DetailHeader title="Event" />
 
       <View className="flex-1 bg-white rounded-t-3xl pt-8 px-6">

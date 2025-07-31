@@ -15,6 +15,9 @@ export interface UserContextType {
   uploadAvatar: (
     avatarFile: File | { uri: string; type?: string; name?: string }
   ) => Promise<boolean>;
+  uploadIdentity: (
+    identityFile: File | { uri: string; type?: string; name?: string }
+  ) => Promise<boolean>;
   clearError: () => void;
 }
 

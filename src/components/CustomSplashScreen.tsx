@@ -70,7 +70,7 @@ const CustomSplashScreen: React.FC<CustomSplashScreenProps> = ({
   if (!isReady) return null;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+    <SafeAreaView edges={["top", "left", "right"]} style={[styles.container, { backgroundColor }]}>
       <Animated.View
         style={{
           opacity: fadeAnim,

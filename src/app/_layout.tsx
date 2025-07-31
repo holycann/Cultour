@@ -11,6 +11,10 @@ const RootNavigator = memo(function RootNavigator() {
       <StatusBar />
       <Stack>
         <Stack.Screen
+          name="index"
+          options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen
           name="(tabs)"
           options={{ headerShown: false, animation: "fade" }}
         />

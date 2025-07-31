@@ -11,9 +11,7 @@ import 'react-native-url-polyfill/auto'
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLIC_API_KEY
 
-console.log("SUPABASE:", supabaseUrl)
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
@@ -35,30 +33,3 @@ AppState.addEventListener('change', (state) => {
     supabase.auth.stopAutoRefresh()
   }
 })
-
-/**
- * Helper function to get current user
- * @returns Promise resolving to the current user or null
- */
-export const getCurrentUser = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-};
-
-/**
- * Helper function to check if user is authenticated
- * @returns Promise resolving to authentication status
- */
-export const isAuthenticated = async (): Promise<boolean> => {
-  const user = await getCurrentUser();
-  return !!user;
-};
-
-/**
- * Helper function to sign out the current user
- */
-export const signOut = async () => {
-  await supabase.auth.signOut();
-};

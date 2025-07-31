@@ -3,7 +3,7 @@ import { useUser } from "@/hooks/useUser";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -13,26 +13,39 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function IdentityVerificationScreen() {
   const router = useRouter();
-  const { profile, updateProfile } = useUser();
+  const { profile, uploadIdentity } = useUser();
   const [fullName, setFullName] = useState(profile?.fullname || "");
-  const [idDocument, setIdDocument] = useState<string | null>(null);
+  const [idDocument, setIdDocument] =
+    useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isConfirmedIdentity, setIsConfirmedIdentity] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
   const [isUnderstandMisleading, setIsUnderstandMisleading] = useState(false);
 
+  useEffect(() => {
+    if (profile?.identity_image_url) {
+      Alert.alert("Error", "Already Verified Identity");
+      router.replace("/(tabs)/profile");
+    }
+
+    if (profile?.fullname) {
+      setFullName(profile.fullname);
+    }
+  }, []);
+
   const pickIdDocument = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
     });
 
     if (!result.canceled) {
-      setIdDocument(result.assets[0].uri);
+      setIdDocument(result.assets[0]);
     }
   };
 
@@ -63,17 +76,20 @@ export default function IdentityVerificationScreen() {
     }
 
     try {
-      await updateProfile({
-        fullname: fullName,
-        identity_image_url: idDocument,
+      const success = await uploadIdentity({
+        uri: idDocument.uri,
+        type: idDocument.type,
+        name: idDocument.fileName as string,
       });
 
-      Alert.alert("Sukses", "Verifikasi identitas berhasil", [
-        {
-          text: "OK",
-          onPress: () => router.push("/dashboard/event"),
-        },
-      ]);
+      if (success) {
+        Alert.alert("Sukses", "Verifikasi identitas berhasil", [
+          {
+            text: "OK",
+            onPress: () => router.push("/profile"),
+          },
+        ]);
+      }
     } catch (error) {
       Alert.alert("Error", "Gagal memperbarui profil");
     }
@@ -88,7 +104,7 @@ export default function IdentityVerificationScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#EEC887]">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
       {/* Header dengan lekukan */}
       <DetailHeader title="Identity Verification" />
 
@@ -130,7 +146,7 @@ export default function IdentityVerificationScreen() {
           >
             {idDocument ? (
               <Image
-                source={{ uri: idDocument }}
+                source={{ uri: idDocument.uri }}
                 className="w-full h-full rounded-xl"
                 resizeMode="cover"
               />
@@ -217,7 +233,7 @@ export default function IdentityVerificationScreen() {
           <Text className="text-[#4E7D79] font-bold text-lg">Save</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

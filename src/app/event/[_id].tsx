@@ -3,6 +3,7 @@ import { useEvent } from "@/hooks/useEvent";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function EventDetailScreen() {
   const router = useRouter();
@@ -17,14 +18,14 @@ export default function EventDetailScreen() {
 
   if (!event) {
     return (
-      <View className="flex-1 bg-[#EEC887] justify-center items-center">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887] justify-center items-center">
         <Text className="text-[#4E7D79]">Loading event...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#EEC887]">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
       <DetailHeader title="Detail Event" />
 
       <View className="flex-1 bg-white rounded-t-3xl pt-8 px-5">
@@ -105,6 +106,6 @@ export default function EventDetailScreen() {
           </View>
         </ScrollView>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

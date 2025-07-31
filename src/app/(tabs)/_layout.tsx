@@ -16,7 +16,7 @@ export default function TabLayout() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-white">
       {/* Top Header */}
       <Header hidden={activeTab === "profile"} />
 

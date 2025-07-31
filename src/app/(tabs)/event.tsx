@@ -30,7 +30,7 @@ export default function EventScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
@@ -38,7 +38,7 @@ export default function EventScreen() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
         <Text className="text-red-500 text-center mt-5">
           {error || "Failed to load events"}
         </Text>
@@ -47,7 +47,7 @@ export default function EventScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row justify-between items-center px-5 pt-5 pb-3">
         <Text className="text-2xl font-bold text-[#1E1E1E]"></Text>
@@ -104,6 +104,6 @@ export default function EventScreen() {
           </View>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

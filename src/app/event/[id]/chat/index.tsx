@@ -6,15 +6,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  FlatList,
-  KeyboardAvoidingView,
-  ListRenderItem,
-  Platform,
-  SafeAreaView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    FlatList,
+    KeyboardAvoidingView,
+    ListRenderItem,
+    Platform,
+    SafeAreaView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function ChatbotScreen() {
@@ -88,7 +88,7 @@ export default function ChatbotScreen() {
   }, [currentSessionId]);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#EEC887]">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
       <DetailHeader title="Chatbot" showBackButton={false} />
       {/* Custom Back Button */}
       <TouchableOpacity

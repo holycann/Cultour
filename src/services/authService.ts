@@ -193,15 +193,37 @@ export class AuthService {
   }
 
   /**
-   * Get current authenticated user
+   * Get current authentication token
+   * @returns Promise resolving to authentication token or null
    */
-  static async getCurrentUser(): Promise<AuthUser | null> {
+  static async getAuthToken(): Promise<string | null> {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
 
-      return user ? this.mapSupabaseUserToAuthUser(user) : null;
+      return session?.access_token || null;
+    } catch (error) {
+      console.error("Failed to get auth token:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get current authenticated user with token
+   * @returns Promise resolving to authenticated user with token or null
+   */
+  static async getCurrentUser(): Promise<(AuthUser & { token?: string }) | null> {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      if (!data.user) return null;
+
+      const authUser = this.mapSupabaseUserToAuthUser(data.user);
+      
+      return {
+        ...authUser,
+        token: sessionData.session?.access_token
+      };
     } catch (error) {
       console.error("Failed to get current user:", error);
       return null;

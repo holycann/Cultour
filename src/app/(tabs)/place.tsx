@@ -5,13 +5,14 @@ import { City } from "@/types/City";
 import { router } from "expo-router";
 import React, { useEffect } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PlaceList() {
   const { cities, fetchCities, isLoading, error } = useCity();
@@ -25,22 +26,22 @@ export default function PlaceList() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
         <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
         <Text className="text-red-500">{error || "Failed to load places"}</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-white">
       <ScrollView contentContainerStyle={{ padding: 24 }}>
         <Text className="mb-4 text-[#1A1A1A]" style={Typography.styles.title}>
           Places
@@ -94,6 +95,6 @@ export default function PlaceList() {
           </TouchableOpacity>
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

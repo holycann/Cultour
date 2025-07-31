@@ -2,6 +2,7 @@ import { useBadge } from "@/hooks/useBadge";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { Image, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function BadgeScreen() {
   const router = useRouter();
@@ -17,25 +18,25 @@ export default function BadgeScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: "#F9EFE4" }}>
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center" style={{ backgroundColor: "#F9EFE4" }}>
         <Text className="text-[#4E7D79]">Loading badges...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: "#F9EFE4" }}>
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center" style={{ backgroundColor: "#F9EFE4" }}>
         <Text className="text-red-500">Error: {error}</Text>
         <TouchableOpacity onPress={fetchBadges} className="mt-4">
           <Text className="text-[#4E7D79]">Try Again</Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: "#F9EFE4" }}>
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1" style={{ backgroundColor: "#F9EFE4" }}>
       <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
       {/* Header */}
@@ -76,6 +77,6 @@ export default function BadgeScreen() {
           </View>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

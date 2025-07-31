@@ -1,4 +1,5 @@
 import { User, UserProfile } from "@/types/User";
+import { getFileType } from "@/utils/file";
 import { BaseApiService } from "./baseApiService";
 
 /**
@@ -54,13 +55,12 @@ export class UserService extends BaseApiService {
   }
 
   /**
-   * Get user profile by user ID
-   * @param userId User's unique identifier
+   * Get authenticated user profile
    * @returns Promise resolving to user profile or null
    */
-  static async getUserProfile(userId: string): Promise<UserProfile | null> {
+  static async getUserProfile(): Promise<UserProfile | null> {
     try {
-      const response = await this.get<UserProfile>(`/profile/${userId}`);
+      const response = await this.get<UserProfile>(`/profile/me`);
 
       if (!response.success) {
         throw new Error(response.error || "Failed to get user profile");
@@ -102,26 +102,30 @@ export class UserService extends BaseApiService {
 
   /**
    * Upload user avatar
-   * @param userId User's unique identifier
+   * @param userProfileID User Profile's unique identifier
    * @param avatarFile File to upload
    * @returns Promise resolving to avatar URL or null
    */
   static async uploadAvatar(
-    userId: string,
+    userProfileID: string,
     avatarFile: File | { uri: string; type?: string; name?: string }
   ): Promise<string | null> {
     try {
       // Create FormData for file upload
       const formData = new FormData();
-      formData.append("avatar", {
-        uri:
-          "uri" in avatarFile ? avatarFile.uri : avatarFile.webkitRelativePath,
-        type: "type" in avatarFile ? avatarFile.type : avatarFile.type,
-        name: "name" in avatarFile ? avatarFile.name : avatarFile.name,
-      } as any);
+      // Only support React Native or web File
+      if ("uri" in avatarFile) {
+        formData.append("avatar", {
+          uri: avatarFile.uri,
+          type: getFileType(avatarFile.uri),
+          name: avatarFile.name || "avatar.jpg",
+        } as any);
+      } else {
+        formData.append("avatar", avatarFile);
+      }
 
-      const response = await this.post<FormData, { avatarUrl: string }>(
-        `/profile/${userId}/avatar`,
+      const response = await this.put<FormData, { avatarUrl: string }>(
+        `/profile/${userProfileID}`,
         formData,
         {
           headers: {
@@ -141,6 +145,53 @@ export class UserService extends BaseApiService {
       return response.data.avatarUrl;
     } catch (error) {
       console.error("Failed to upload avatar:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify user identity by uploading identity image
+   * @param userProfileID User Profile's unique identifier
+   * @param identityFile File to upload (identity image)
+   * @returns Promise resolving to identity image URL or null
+   */
+  static async verifyIdentity(
+    userProfileID: string,
+    identityFile: File | { uri: string; type?: string; name?: string }
+  ): Promise<string | null> {
+    try {
+      const formData = new FormData();
+      if ("uri" in identityFile) {
+        formData.append("identity_image", {
+          uri: identityFile.uri,
+          type: getFileType(identityFile.uri),
+          name: identityFile.name,
+        } as any);
+      } else {
+        formData.append("identity_image", identityFile);
+      }
+
+      const response = await this.put<FormData, { identityImageUrl: string }>(
+        `/profile/${userProfileID}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to verify identity");
+      }
+
+      if (!response.data) {
+        throw new Error("No identity image URL returned");
+      }
+
+      return response.data.identityImageUrl;
+    } catch (error) {
+      console.error("Failed to verify identity:", error);
       throw error;
     }
   }

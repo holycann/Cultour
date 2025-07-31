@@ -3,22 +3,30 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileIndexScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { profile, isLoading, error } = useUser();
+
+  useEffect(() => {
+    if (!user) {
+      Alert.alert("Error", "Please Login First For Access Your Profile");
+      router.replace("/auth/login")
+    }
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -31,7 +39,7 @@ export default function ProfileIndexScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F9EFE4] justify-center items-center">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#F9EFE4] justify-center items-center">
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
@@ -39,7 +47,7 @@ export default function ProfileIndexScreen() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-[#F9EFE4] justify-center items-center">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#F9EFE4] justify-center items-center">
         <Text className="text-red-500 text-center">
           {error || "Failed to load profile"}
         </Text>

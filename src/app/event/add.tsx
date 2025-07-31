@@ -3,6 +3,7 @@ import Maps from "@/components/Maps";
 import { useCity } from "@/hooks/useCity";
 import { useEvent } from "@/hooks/useEvent";
 import { useProvince } from "@/hooks/useProvince";
+import { useUser } from "@/hooks/useUser";
 import {
   Alert,
   Dimensions,
@@ -14,17 +15,23 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
+import { useAuth } from "@/hooks/useAuth";
 import { Picker } from "@react-native-picker/picker";
 
 export default function AddEventScreen() {
   const router = useRouter();
+  const { profile } = useUser();
+  const { user } = useAuth();
+
+  // State untuk event
   const [eventTitle, setEventTitle] = useState("");
   const [eventDescription, setEventDescription] = useState("");
   const [startDate, setStartDate] = useState(new Date());
@@ -49,8 +56,38 @@ export default function AddEventScreen() {
   const { provinces, fetchProvinces } = useProvince();
   const { cities, fetchCities } = useCity();
 
+  // Cek status autentikasi dan verifikasi
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      // Cek apakah user sudah login
+      if (!user) {
+        Alert.alert("Login Required", "Please login to create an event", [
+          { text: "Login", onPress: () => router.push("/auth/login") },
+        ]);
+        return;
+      }
+
+      // Cek apakah user sudah terverifikasi
+      if (!profile?.identity_image_url) {
+        Alert.alert(
+          "Verification Required",
+          "Please complete your identity verification",
+          [
+            {
+              text: "Verify Identity",
+              onPress: () => router.push("/profile/verify"),
+            },
+          ]
+        );
+        return;
+      }
+    };
+
+    checkUserStatus();
+  }, []);
+
   // Fetch provinces and cities only once when the component first loads
-  React.useEffect(() => {
+  useEffect(() => {
     if (provinces.length === 0) {
       fetchProvinces();
     }
@@ -67,7 +104,7 @@ export default function AddEventScreen() {
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
@@ -86,9 +123,9 @@ export default function AddEventScreen() {
       { value: selectedProvince, message: "Provinsi" },
       { value: selectedCity, message: "Kota" },
       { value: image, message: "Gambar Pendukung" },
-      { 
-        value: selectedLocation.latitude && selectedLocation.longitude, 
-        message: "Lokasi Event" 
+      {
+        value: selectedLocation.latitude && selectedLocation.longitude,
+        message: "Lokasi Event",
       },
     ];
 
@@ -99,7 +136,7 @@ export default function AddEventScreen() {
 
     if (emptyFields.length > 0) {
       Alert.alert(
-        "Error", 
+        "Error",
         `Harap isi field berikut:\n${emptyFields.join(", ")}`
       );
       return;
@@ -107,7 +144,10 @@ export default function AddEventScreen() {
 
     // Validasi tanggal
     if (startDate > endDate) {
-      Alert.alert("Error", "Tanggal mulai tidak boleh lebih dari tanggal selesai");
+      Alert.alert(
+        "Error",
+        "Tanggal mulai tidak boleh lebih dari tanggal selesai"
+      );
       return;
     }
 
@@ -138,7 +178,8 @@ export default function AddEventScreen() {
           endTime.getHours(),
           endTime.getMinutes()
         ).toISOString(),
-        location: selectedLocation.name || `${selectedCity}, ${selectedProvince}`,
+        location:
+          selectedLocation.name || `${selectedCity}, ${selectedProvince}`,
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude,
         images: [image],
@@ -159,7 +200,7 @@ export default function AddEventScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#EEC887]">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
       <DetailHeader title="Create Event" />
 
       <ScrollView
@@ -219,6 +260,7 @@ export default function AddEventScreen() {
                 onValueChange={(itemValue) => {
                   setSelectedProvince(itemValue);
                   setSelectedCity(""); // Reset kota saat provinsi berubah
+                  setSelectedLocation({}); // Kosongkan lokasi saat provinsi berubah
                 }}
               >
                 <Picker.Item label="Pilih Provinsi" value="" />
@@ -239,7 +281,10 @@ export default function AddEventScreen() {
             <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
               <Picker
                 selectedValue={selectedCity}
-                onValueChange={(itemValue) => setSelectedCity(itemValue)}
+                onValueChange={(itemValue) => {
+                  setSelectedCity(itemValue);
+                  setSelectedLocation({}); // Kosongkan lokasi saat city berubah
+                }}
                 enabled={!!selectedProvince}
               >
                 <Picker.Item
@@ -264,30 +309,50 @@ export default function AddEventScreen() {
           {/* Location Preview */}
           <View className="mb-4">
             <Text className="mb-2 text-[#1E1E1E]">Lokasi Event</Text>
-            <TouchableOpacity 
-              onPress={() => setIsFullScreenMapVisible(true)}
+            <TouchableOpacity
+              onPress={() => {
+                if (!selectedCity) {
+                  Alert.alert(
+                    "Pilih Kota",
+                    "Silahkan pilih city terlebih dahulu"
+                  );
+                  return;
+                }
+                setIsFullScreenMapVisible(true);
+              }}
               className="bg-white rounded-xl px-4 py-3"
               style={shadowStyle}
             >
-              <Text className="text-[#1E1E1E]">
-                {selectedLocation.name 
-                  ? selectedLocation.name 
+              <Text
+                className={`text-[#1E1E1E] ${!selectedCity ? "text-gray-400" : ""}`}
+              >
+                {!selectedCity
+                  ? "Silahkan pilih city terlebih dahulu"
+                  : selectedLocation.name
+                  ? selectedLocation.name
                   : "Pilih Lokasi Event"}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Maps Preview */}
-          <Maps 
-            onLocationSelect={(location) => {
-              setSelectedLocation(location);
-            }}
-          />
-
           {/* Full Screen Maps Modal */}
           {isFullScreenMapVisible && (
-            <Maps 
+            <Maps
               isFullScreen={true}
+              previousLocation={
+                selectedLocation.latitude && selectedLocation.longitude
+                  ? {
+                      latitude: selectedLocation.latitude,
+                      longitude: selectedLocation.longitude,
+                      name: selectedLocation.name,
+                    }
+                  : undefined
+              }
+              initialCity={
+                selectedCity
+                  ? cities.find((city) => city.id === selectedCity)
+                  : undefined
+              }
               onLocationSelect={(location) => {
                 setSelectedLocation(location);
                 setIsFullScreenMapVisible(false);
@@ -413,7 +478,7 @@ export default function AddEventScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

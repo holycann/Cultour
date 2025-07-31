@@ -1,25 +1,30 @@
 import Colors from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
+import { useAuth } from "@/hooks/useAuth";
 import { useCity } from "@/hooks/useCity";
 import { useEvent } from "@/hooks/useEvent";
+import { useUser } from "@/hooks/useUser";
 import { City } from "@/types/City";
 import { Event } from "@/types/Event";
 import { logger } from "@/utils/logger";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  const { user } = useAuth();
+
   const {
     trendingEvents,
     isLoading: eventsLoading,
@@ -27,6 +32,9 @@ export default function HomeScreen() {
     fetchTrendingEvents,
     error: eventsError,
   } = useEvent();
+
+  const { fetchUserProfile } = useUser();
+
   const {
     cities,
     isLoading: citiesLoading,
@@ -34,16 +42,9 @@ export default function HomeScreen() {
     error: citiesError,
   } = useCity();
 
-  // State untuk tracking rendering
-  const [renderCount, setRenderCount] = useState(0);
-
   // Fetch data on component mount
   useEffect(() => {
     const loadData = async () => {
-      logger.log("HomeScreen", "Fetching Initial Data");
-      console.log("Platform:", Platform.OS);
-      console.log("Fetching events, trending events, and cities");
-
       try {
         await fetchEvents();
         await fetchTrendingEvents();
@@ -53,21 +54,34 @@ export default function HomeScreen() {
           eventCount: trendingEvents.length,
           cityCount: cities.length,
         });
-
-        console.log("Trending Events:", trendingEvents);
-        console.log("Cities:", cities);
       } catch (error) {
         logger.error("HomeScreen", "Data Fetch Error", error);
         console.error("Data Fetch Error:", error);
       }
     };
 
+    const fetchProfile = async (userId: string) => {
+      try {
+        await fetchUserProfile(userId);
+      } catch (error) {
+        logger.error("HomeScreen", "User Profile Fetch Error", error);
+        console.error("User Profile Fetch Error:", error);
+      }
+    };
+
     if (trendingEvents.length === 0 || cities.length === 0) {
       loadData();
     }
+
+    if (user) {
+      logger.log("HomeScreen", "Fetching User Profile", { userId: user.id });
+      fetchProfile(user.id);
+    }
   }, [
+    user,
     cities,
     trendingEvents,
+    fetchUserProfile,
     fetchEvents,
     fetchTrendingEvents,
     fetchCities,
@@ -95,11 +109,10 @@ export default function HomeScreen() {
 
   // Loading state
   if (eventsLoading || citiesLoading) {
-    console.log("Rendering Loading State");
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
         <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -110,17 +123,14 @@ export default function HomeScreen() {
     !cities ||
     cities.length === 0
   ) {
-    console.log("Rendering No Data Available");
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
         <Text>No data available</Text>
         <Text>Trending Events: {trendingEvents?.length}</Text>
         <Text>Cities: {cities?.length}</Text>
-      </View>
+      </SafeAreaView>
     );
   }
-
-  console.log("Rendering Home Screen Content");
 
   return (
     <ScrollView

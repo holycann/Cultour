@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function EditProfileScreen() {
       try {
         const success = await uploadAvatar({
           uri: selectedImage.uri,
-          type: selectedImage.type || "image/jpeg",
+          type: selectedImage.type,
           name: selectedImage.fileName || "avatar.jpg",
         });
 
@@ -64,7 +65,6 @@ export default function EditProfileScreen() {
       await updateProfile({
         fullname: fullname || "",
         bio: bio || "",
-        avatar_url: profileImage || undefined,
       });
       router.back();
     } catch (err) {
@@ -74,18 +74,18 @@ export default function EditProfileScreen() {
 
   if (isLoading || error) {
     return (
-      <View className="flex-1 justify-center items-center bg-[#F9EFE4]">
+      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-[#F9EFE4]">
         <Text
           className={`text-center ${error ? "text-red-500" : "text-[#4E7D79]"}`}
         >
           {error ? `Error: ${error}` : "Loading profile..."}
         </Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View className="flex-1 bg-[#EEC887]">
+    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
       <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
       {/* Custom Header */}
@@ -169,7 +169,7 @@ export default function EditProfileScreen() {
           <Text className="text-[#4E7D79] font-bold text-lg">Save</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
