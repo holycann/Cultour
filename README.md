@@ -2,7 +2,7 @@
 
 ## 🌟 Project Overview
 
-Cultour is an innovative mobile application designed to help users explore and engage with local cultural experiences. Forked from [Suryaalghifari/Cultour](https://github.com/Suryaalghifari/Cultour), this project aims to provide an immersive platform for discovering cultural events, locations, and stories.
+Cultour is an innovative mobile application designed to help users explore and engage with local cultural experiences. Originally developed during Garuda Hack 6.0, this project was forked from [Suryaalghifari/Cultour](https://github.com/Suryaalghifari/Cultour) and aims to provide an immersive platform for discovering cultural events, locations, and stories.
 
 ## 🚀 Key Features
 
