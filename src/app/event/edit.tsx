@@ -5,31 +5,36 @@ import { useEvent } from "@/hooks/useEvent";
 import { useProvince } from "@/hooks/useProvince";
 import { useUser } from "@/hooks/useUser";
 import {
-  Alert,
-  Dimensions,
-  Image,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Dimensions,
+    Image,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { Picker } from "@react-native-picker/picker";
 
-export default function AddEventScreen() {
+export default function EditEventScreen() {
   const router = useRouter();
+  const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const { profile } = useUser();
   const { user } = useAuth();
+
+  const { event, getEventById, updateEvent } = useEvent();
+  const { provinces, fetchProvinces } = useProvince();
+  const { cities, fetchCities } = useCity();
 
   // State untuk event
   const [eventTitle, setEventTitle] = useState("");
@@ -52,16 +57,12 @@ export default function AddEventScreen() {
   }>({});
   const [isFullScreenMapVisible, setIsFullScreenMapVisible] = useState(false);
 
-  const { createEvent } = useEvent();
-  const { provinces, fetchProvinces } = useProvince();
-  const { cities, fetchCities } = useCity();
-
   // Cek status autentikasi dan verifikasi
   useEffect(() => {
     const checkUserStatus = async () => {
       // Cek apakah user sudah login
       if (!user) {
-        Alert.alert("Login Required", "Please login to create an event", [
+        Alert.alert("Login Required", "Please login to edit an event", [
           { text: "Login", onPress: () => router.push("/auth/login") },
         ]);
         return;
@@ -85,6 +86,59 @@ export default function AddEventScreen() {
 
     checkUserStatus();
   }, [user, profile, router]);
+
+  // Fetch event details when screen loads
+  useEffect(() => {
+    const fetchEventDetails = async () => {
+      if (eventId) {
+        const fetchedEvent = await getEventById(eventId);
+
+        if (fetchedEvent) {
+          // Populate form with existing event data
+          setEventTitle(fetchedEvent.name || "");
+          setEventDescription(fetchedEvent.description || "");
+
+          // Set dates and times
+          if (fetchedEvent.start_date) {
+            const startDateTime = new Date(fetchedEvent.start_date);
+            setStartDate(startDateTime);
+            setStartTime(startDateTime);
+          }
+
+          if (fetchedEvent.end_date) {
+            const endDateTime = new Date(fetchedEvent.end_date);
+            setEndDate(endDateTime);
+            setEndTime(endDateTime);
+          }
+
+          // Set province and city
+          if (fetchedEvent.province_id) {
+            setSelectedProvince(fetchedEvent.province_id);
+          }
+
+          if (fetchedEvent.city_id) {
+            setSelectedCity(fetchedEvent.city_id);
+          }
+
+          // Set image
+          if (fetchedEvent.image && fetchedEvent.image.length > 0) {
+            setImage(fetchedEvent.image[0] || null);
+          }
+
+          // Set location
+          if (fetchedEvent.location) {
+            setSelectedLocation({
+              latitude: fetchedEvent.location.latitude,
+              longitude: fetchedEvent.location.longitude,
+              name: fetchedEvent.location.name,
+            });
+          }
+        }
+      }
+    };
+
+    fetchEventDetails();
+  }, [eventId, getEventById]);
 
   // Fetch provinces and cities only once when the component first loads
   useEffect(() => {
@@ -116,7 +170,7 @@ export default function AddEventScreen() {
     }
   };
 
-  const handleCreate = async () => {
+  const handleUpdate = async () => {
     // Validasi semua field
     const validations = [
       { value: eventTitle, message: "Judul Event" },
@@ -189,17 +243,17 @@ export default function AddEventScreen() {
         province_id: selectedProvince,
       };
 
-      const response = await createEvent(eventData);
+      const response = await updateEvent(eventId, eventData);
 
       if (response) {
-        Alert.alert("Sukses", "Event berhasil dibuat");
-        router.push("/event");
+        Alert.alert("Sukses", "Event berhasil diperbarui");
+        router.push(`/event/${eventId}`);
       } else {
-        Alert.alert("Error", "Gagal membuat event");
+        Alert.alert("Error", "Gagal memperbarui event");
       }
     } catch (error) {
-      console.error("Error creating event:", error);
-      Alert.alert("Error", "Terjadi kesalahan saat membuat event");
+      console.error("Error updating event:", error);
+      Alert.alert("Error", "Terjadi kesalahan saat memperbarui event");
     }
   };
 
@@ -208,7 +262,7 @@ export default function AddEventScreen() {
       edges={["top", "left", "right"]}
       className="flex-1 bg-[#EEC887]"
     >
-      <DetailHeader title="Create Event" />
+      <DetailHeader title="Edit Event" />
 
       <ScrollView
         className="flex-1"
@@ -438,7 +492,10 @@ export default function AddEventScreen() {
                   style={shadowStyle}
                 >
                   <Text className="text-[#1E1E1E]">
-                    {item.value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {item.value.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </Text>
                 </TouchableOpacity>
                 {item.show && (
@@ -478,17 +535,18 @@ export default function AddEventScreen() {
 
           {/* Button */}
           <TouchableOpacity
-            onPress={handleCreate}
+            onPress={handleUpdate}
             className="bg-[#EEC887] rounded-xl py-4 items-center mt-4"
           >
-            <Text className="text-[#1E1E1E] font-bold text-lg">Create Event</Text>
+            <Text className="text-[#1E1E1E] font-bold text-lg">
+              Update Event
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
 const shadowStyle = {
   shadowColor: "#000",
   shadowOffset: { width: 0, height: 2 },

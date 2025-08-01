@@ -6,16 +6,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    FlatList,
-    KeyboardAvoidingView,
-    ListRenderItem,
-    Platform,
-    SafeAreaView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  KeyboardAvoidingView,
+  ListRenderItem,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ChatbotScreen() {
   const router = useRouter();
@@ -89,14 +89,7 @@ export default function ChatbotScreen() {
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
-      <DetailHeader title="Chatbot" showBackButton={false} />
-      {/* Custom Back Button */}
-      <TouchableOpacity
-        onPress={handleGoBack}
-        style={{ position: "absolute", left: 16, top: 24, zIndex: 10 }}
-      >
-        <Ionicons name="arrow-back-circle-outline" size={30} color="#4E7D79" />
-      </TouchableOpacity>
+      <DetailHeader title="Chatbot" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

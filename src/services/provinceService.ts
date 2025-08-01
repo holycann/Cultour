@@ -1,5 +1,6 @@
+import { ApiResponse, isApiResponse } from "@/types/ApiResponse";
 import { Province } from "@/types/Province";
-import { BaseApiService } from './baseApiService';
+import { BaseApiService } from "./baseApiService";
 
 /**
  * Province service for managing province-related API operations
@@ -11,16 +12,48 @@ export class ProvinceService extends BaseApiService {
    */
   static async fetchProvinces(): Promise<Province[]> {
     try {
-      const response = await this.get<Province[]>('/provinces');
+      const response = await this.get<ApiResponse<Province[]>>("/provinces");
       
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch provinces");
+      // Type guard to ensure we return an array of provinces
+      if (isApiResponse<Province[]>(response) && response.data) {
+        return response.data;
       }
-
-      return response.data || [];
+      
+      return [];
     } catch (error) {
       console.error("Failed to fetch provinces:", error);
-      throw error;
+      return [];
+    }
+  }
+
+  /**
+   * Search provinces by query
+   * @param query Search query string
+   * @param options Optional search options
+   */
+  static async searchProvinces(
+    query: string, 
+    options?: { 
+      limit?: number 
+    }
+  ): Promise<Province[]> {
+    try {
+      const response = await this.get<ApiResponse<Province[]>>("/provinces/search", { 
+        params: { 
+          query, 
+          limit: options?.limit || 5
+        } 
+      });
+      
+      // Type guard to ensure we return an array of provinces
+      if (isApiResponse<Province[]>(response) && response.data) {
+        return response.data;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error("Failed to search provinces:", error);
+      return [];
     }
   }
 

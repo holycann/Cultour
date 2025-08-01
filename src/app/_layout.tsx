@@ -47,6 +47,10 @@ const RootNavigator = memo(function RootNavigator() {
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen
+          name="event/edit"
+          options={{ headerShown: false, animation: "slide_from_right" }}
+        />
+        <Stack.Screen
           name="event/[_id]"
           options={{ headerShown: false, animation: "slide_from_right" }}
         />

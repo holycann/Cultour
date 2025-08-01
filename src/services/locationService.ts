@@ -1,21 +1,62 @@
+import { ApiResponse, isApiResponse } from "@/types/ApiResponse";
 import { Location } from "@/types/Location";
-import { BaseApiService } from './baseApiService';
+import { BaseApiService } from "./baseApiService";
 
 /**
  * Location service for managing location-related API operations
  */
 export class LocationService extends BaseApiService {
   /**
-   * Fetch all locations
-   * @returns Promise resolving to array of locations
+   * Fetch locations, optionally filtered by city
    */
-  static async fetchLocations(): Promise<Location[]> {
+  static async fetchLocations(cityId?: string): Promise<Location[]> {
     try {
-      const response = await this.get<Location[]>('/locations');
-      return response.data || []; // Return empty array if data is null
+      const response = await this.get<ApiResponse<Location[]>>("/locations", { 
+        params: { cityId } 
+      });
+      
+      // Type guard to ensure we return an array of locations
+      if (isApiResponse<Location[]>(response) && response.data) {
+        return response.data;
+      }
+      
+      return [];
     } catch (error) {
       console.error("Failed to fetch locations:", error);
-      throw error;
+      return [];
+    }
+  }
+
+  /**
+   * Search locations by query
+   * @param query Search query string
+   * @param options Optional search options
+   */
+  static async searchLocations(
+    query: string, 
+    options?: { 
+      limit?: number; 
+      cityId?: string 
+    }
+  ): Promise<Location[]> {
+    try {
+      const response = await this.get<ApiResponse<Location[]>>("/locations/search", { 
+        params: { 
+          query, 
+          limit: options?.limit || 5,
+          cityId: options?.cityId
+        } 
+      });
+      
+      // Type guard to ensure we return an array of locations
+      if (isApiResponse<Location[]>(response) && response.data) {
+        return response.data;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error("Failed to search locations:", error);
+      return [];
     }
   }
 

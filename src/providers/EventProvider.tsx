@@ -252,6 +252,22 @@ export function EventProvider({ children }: EventProviderProps) {
   );
 
   /**
+   * Update event views
+   */
+  const updateEventViews = useCallback(
+    async (eventId: string) => {
+      try {
+        await EventService.updateEventViews(eventId);
+        return true;
+      } catch (error) {
+        handleError(error, "Gagal memperbarui tampilan event");
+        return false;
+      }
+    },
+    [handleError]
+  );
+
+  /**
    * Clear error state
    */
   const clearError = useCallback(() => {
@@ -274,6 +290,7 @@ export function EventProvider({ children }: EventProviderProps) {
     deleteEvent,
     getEventById,
     getEventByName,
+    updateEventViews,
     clearError,
   };
 

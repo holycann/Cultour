@@ -8,15 +8,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function DiscussionScreen() {

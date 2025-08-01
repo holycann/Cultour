@@ -1,22 +1,24 @@
+import { City } from "./City";
+import { Location } from "./Location";
+import { Province } from "./Province";
+import { User } from "./User";
+
 export interface Event {
-  id: string; // uuid
+  id: string;
   created_at: Date;
   name: string;
-  location_id?: string;
   description?: string;
-  start_date?: Date;
-  end_date?: Date;
+  start_date?: string;
+  end_date?: string;
   is_kid_friendly?: boolean;
   views?: number;
   image_url?: string;
-  city_id?: string;
-  province_id?: string;
+  image?: (string | null)[];
   user_id?: string;
 
   // Optional relations
-  city?: any; // Avoid circular dependency
-  province?: any; // Avoid circular dependency
-  location?: any; // Avoid circular dependency
-  user?: any; // Avoid circular dependency
-  threads?: any[]; // Avoid circular dependency
+  city?: City; // Avoid circular dependency
+  province?: Province; // Avoid circular dependency
+  location?: Location; // Avoid circular dependency
+  user?: User; // Avoid circular dependency
 }

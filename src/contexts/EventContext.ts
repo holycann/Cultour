@@ -21,6 +21,7 @@ export interface EventContextType {
   deleteEvent: (eventId: string) => Promise<boolean>;
   getEventById: (eventId: string) => Promise<Event | undefined>;
   getEventByName: (eventName: string) => Promise<Event | null>;
+  updateEventViews: (eventId: string) => Promise<boolean>;
   clearError: () => void;
 }
 

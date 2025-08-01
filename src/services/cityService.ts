@@ -1,3 +1,4 @@
+import { ApiResponse, isApiResponse } from "@/types/ApiResponse";
 import { City } from "@/types/City";
 import { BaseApiService } from "./baseApiService";
 
@@ -6,21 +7,56 @@ import { BaseApiService } from "./baseApiService";
  */
 export class CityService extends BaseApiService {
   /**
-   * Fetch all cities
-   * @returns Promise resolving to array of cities
+   * Fetch cities, optionally filtered by province
    */
-  static async fetchCities(): Promise<City[]> {
+  static async fetchCities(provinceId?: string): Promise<City[]> {
     try {
-      const response = await this.get<City[]>("/cities");
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch cities");
+      const response = await this.get<ApiResponse<City[]>>("/cities", { 
+        params: { provinceId } 
+      });
+      
+      // Type guard to ensure we return an array of cities
+      if (isApiResponse<City[]>(response) && response.data) {
+        return response.data;
       }
-
-      return response.data || [];
+      
+      return [];
     } catch (error) {
       console.error("Failed to fetch cities:", error);
-      throw error;
+      return [];
+    }
+  }
+
+  /**
+   * Search cities by query
+   * @param query Search query string
+   * @param options Optional search options
+   */
+  static async searchCities(
+    query: string, 
+    options?: { 
+      limit?: number; 
+      provinceId?: string 
+    }
+  ): Promise<City[]> {
+    try {
+      const response = await this.get<ApiResponse<City[]>>("/cities/search", { 
+        params: { 
+          query, 
+          limit: options?.limit || 5,
+          provinceId: options?.provinceId
+        } 
+      });
+      
+      // Type guard to ensure we return an array of cities
+      if (isApiResponse<City[]>(response) && response.data) {
+        return response.data;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error("Failed to search cities:", error);
+      return [];
     }
   }
 

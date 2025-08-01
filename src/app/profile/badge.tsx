@@ -1,82 +1,126 @@
+import DetailHeader from "@/app/components/DetailHeader";
 import { useBadge } from "@/hooks/useBadge";
-import { useRouter } from "expo-router";
+import { Badge } from "@/types/Badge";
 import React, { useEffect } from "react";
-import { Image, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StatusBar, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function BadgeScreen() {
-  const router = useRouter();
   const { badges, isLoading, error, fetchBadges } = useBadge();
 
   useEffect(() => {
     fetchBadges();
   }, []);
 
-  const handleGoBack = () => {
-    router.back();
-  };
-
-  if (isLoading) {
+  if (isLoading || error) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center" style={{ backgroundColor: "#F9EFE4" }}>
-        <Text className="text-[#4E7D79]">Loading badges...</Text>
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 justify-center items-center bg-[#F9EFE4]"
+      >
+        <Text
+          className={`text-center ${error ? "text-red-500" : "text-[#4E7D79]"}`}
+        >
+          {error ? `Error: ${error}` : "Loading badges..."}
+        </Text>
       </SafeAreaView>
     );
   }
 
-  if (error) {
-    return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center" style={{ backgroundColor: "#F9EFE4" }}>
-        <Text className="text-red-500">Error: {error}</Text>
-        <TouchableOpacity onPress={fetchBadges} className="mt-4">
-          <Text className="text-[#4E7D79]">Try Again</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
+  // Separate my badges and available badges
+  const myBadges: Badge[] = badges.filter(
+    (badge) => badge.name === "Explorer" || badge.name === "Warlok"
+  );
+  const availableBadges: Badge[] = badges.filter(
+    (badge) => badge.name !== "Explorer" && badge.name !== "Warlok"
+  );
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} className="flex-1" style={{ backgroundColor: "#F9EFE4" }}>
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      className="flex-1 bg-[#EEC887]"
+    >
       <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
-      {/* Header */}
-      <View className="flex-row items-center p-4">
-        <TouchableOpacity onPress={handleGoBack} className="mr-4">
-          <Text className="text-[#4E7D79] text-lg">{"<"}</Text>
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-[#4E7D79]">Badge</Text>
-      </View>
+      {/* Custom Header */}
+      <DetailHeader title="Badges" />
 
-      {/* Konten Badge */}
-      <View className="px-4 mt-4">
-        <Text className="text-2xl font-bold text-[#4E7D79] mb-4">Badge</Text>
-
-        <View
-          className="bg-white rounded-xl p-4"
-          style={{
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: 2,
-          }}
-        >
-          <View className="flex-row justify-between">
-            {badges.map((badge) => (
-              <View key={badge.id} className="items-center w-[45%]">
-                <Image
-                  source={{ uri: badge.icon_url }}
-                  className="w-32 h-32"
-                  resizeMode="contain"
-                />
-                <Text className="mt-2 text-base font-bold text-[#4E7D79]">
-                  {badge.name}
-                </Text>
-              </View>
-            ))}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1, backgroundColor: "white", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* My Badges Section */}
+        <View className="mb-6">
+          <Text className="text-xl font-bold text-[#1E1E1E] mb-4">
+            My Badges
+          </Text>
+          <View
+            className="bg-[#F9EFE4] rounded-xl p-4 flex-row flex-wrap justify-between"
+            style={shadowStyle}
+          >
+            {myBadges.length > 0 ? (
+              myBadges.map((badge) => (
+                <View key={badge.id} className="items-center w-[45%] mb-4">
+                  <Image
+                    source={{ uri: badge.icon_url }}
+                    className="w-32 h-32"
+                    resizeMode="contain"
+                  />
+                  <Text className="mt-2 text-base font-bold text-[#4E7D79] text-center">
+                    {badge.name}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text className="text-[#4E7D79] text-center w-full">
+                No badges earned yet
+              </Text>
+            )}
           </View>
         </View>
-      </View>
+
+        {/* Available Badges Section */}
+        <View className="mb-6">
+          <Text className="text-xl font-bold text-[#1E1E1E] mb-4">
+            Available Badges
+          </Text>
+          <View
+            className="bg-white rounded-xl p-4 flex-row flex-wrap justify-between"
+            style={shadowStyle}
+          >
+            {availableBadges.length > 0 ? (
+              availableBadges.map((badge) => (
+                <View
+                  key={badge.id}
+                  className="items-center w-[45%] mb-4 opacity-50"
+                >
+                  <Image
+                    source={{ uri: badge.icon_url }}
+                    className="w-32 h-32"
+                    resizeMode="contain"
+                  />
+                  <Text className="mt-2 text-base font-bold text-[#4E7D79] text-center">
+                    {badge.name}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text className="text-[#4E7D79] text-center w-full">
+                No additional badges available
+              </Text>
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
+
+const shadowStyle = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  elevation: 2,
+};

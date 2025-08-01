@@ -10,6 +10,7 @@ import { EventProvider } from "./EventProvider";
 import { LocationProvider } from "./LocationProvider";
 import { MessageProvider } from "./MessageProvider";
 import { ProvinceProvider } from "./ProvinceProvider";
+import { SearchProvider } from "./SearchProvider";
 import { ThreadProvider } from "./ThreadProvider";
 import { UserProvider } from "./UserProvider";
 
@@ -30,27 +31,27 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     <ErrorBoundary>
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <UserProvider>
-          <ThreadProvider>
-            <MessageProvider>
-              <LocationProvider>
-                <EventProvider>
-                  <CityProvider>
-                    <BadgeProvider>
-                      <ProvinceProvider>
-                        <AiProvider>
-                            {children}
-                        </AiProvider>
-                      </ProvinceProvider>
-                    </BadgeProvider>
-                  </CityProvider>
-                </EventProvider>
-              </LocationProvider>
-            </MessageProvider>
-          </ThreadProvider>
-        </UserProvider>
-      </AuthProvider>
+          <AuthProvider>
+            <UserProvider>
+              <ThreadProvider>
+                <MessageProvider>
+                  <LocationProvider>
+                    <EventProvider>
+                      <CityProvider>
+                        <BadgeProvider>
+                          <ProvinceProvider>
+                            <AiProvider>
+                              <SearchProvider>{children}</SearchProvider>
+                            </AiProvider>
+                          </ProvinceProvider>
+                        </BadgeProvider>
+                      </CityProvider>
+                    </EventProvider>
+                  </LocationProvider>
+                </MessageProvider>
+              </ThreadProvider>
+            </UserProvider>
+          </AuthProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </ErrorBoundary>

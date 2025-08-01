@@ -10,13 +10,13 @@ import { logger } from "@/utils/logger";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -110,7 +110,10 @@ export default function HomeScreen() {
   // Loading state
   if (eventsLoading || citiesLoading) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 justify-center items-center bg-white"
+      >
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
@@ -124,7 +127,10 @@ export default function HomeScreen() {
     cities.length === 0
   ) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 justify-center items-center bg-white"
+      >
         <Text>No data available</Text>
         <Text>Trending Events: {trendingEvents?.length}</Text>
         <Text>Cities: {cities?.length}</Text>
@@ -184,53 +190,61 @@ export default function HomeScreen() {
           Place Recommendation
         </Text>
 
-        {cities.map((city: City) => (
-          <View key={city.id} className="flex-row items-center mb-4">
-            <Image
-              source={{ uri: (city as any).image_url || "" }}
-              className="w-[72px] h-[72px] rounded-xl mr-3 border"
-              style={{
-                backgroundColor: Colors.primary50,
-                borderColor: Colors.primary,
-              }}
-              resizeMode="cover"
-            />
+        {cities.map((city: City) => {
+          // Use a fallback image if city.image_url is missing or empty
+          const imageUrl =
+            city.image_url && city.image_url.trim() !== ""
+              ? city.image_url
+              : "https://placehold.co/72x72?text=City";
+          return (
+            <View key={city.id} className="flex-row items-center mb-4">
+              <Image
+                source={{ uri: imageUrl }}
+                className="w-[72px] h-[72px] rounded-xl mr-3 border"
+                style={{
+                  backgroundColor: Colors.primary50,
+                  borderColor: Colors.primary,
+                }}
+                resizeMode="cover"
+                defaultSource={require("@/assets/images/splash.png")}
+              />
 
-            <TouchableOpacity
-              className="flex-1 flex-row items-center rounded-2xl py-4 px-5 shadow-sm min-h-[72px]"
-              style={{
-                backgroundColor: Colors.primary50,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.08,
-                shadowRadius: 4,
-                elevation: 2,
-              }}
-              onPress={() => {
-                logger.log("HomeScreen", "City Pressed", { cityId: city.id });
-                router.push(`/place/${city.id}` as any);
-              }}
-            >
-              <View className="flex-1">
-                <Text
-                  className="text-[#1A1A1A]"
-                  style={Typography.styles.subtitle}
-                >
-                  {city.name}
+              <TouchableOpacity
+                className="flex-1 flex-row items-center rounded-2xl py-4 px-5 shadow-sm min-h-[72px]"
+                style={{
+                  backgroundColor: Colors.primary50,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+                  elevation: 2,
+                }}
+                onPress={() => {
+                  logger.log("HomeScreen", "City Pressed", { cityId: city.id });
+                  router.push(`/place/${city.id}` as any);
+                }}
+              >
+                <View className="flex-1">
+                  <Text
+                    className="text-[#1A1A1A]"
+                    style={Typography.styles.subtitle}
+                  >
+                    {city.name}
+                  </Text>
+                  <Text
+                    className="text-[#1A1A1A] opacity-70"
+                    style={Typography.styles.body}
+                  >
+                    {city.Province?.name}
+                  </Text>
+                </View>
+                <Text className="text-2xl text-[#1A1A1A] font-bold opacity-50 ml-3">
+                  {">"}
                 </Text>
-                <Text
-                  className="text-[#1A1A1A] opacity-70"
-                  style={Typography.styles.body}
-                >
-                  {city.Province?.name}
-                </Text>
-              </View>
-              <Text className="text-2xl text-[#1A1A1A] font-bold opacity-50 ml-3">
-                {">"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </View>
     </ScrollView>
   );

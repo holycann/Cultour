@@ -1,27 +1,68 @@
+import { ApiResponse, isApiResponse } from "@/types/ApiResponse";
 import { Event } from "@/types/Event";
-import { BaseApiService } from './baseApiService';
+import { BaseApiService } from "./baseApiService";
 
 /**
  * Event service for managing event-related API operations
  */
 export class EventService extends BaseApiService {
   /**
-   * Fetch all events
-   * @returns Promise resolving to array of events
+   * Fetch events with optional filters
    */
-  static async fetchEvents(): Promise<Event[]> {
+  static async fetchEvents(filters?: {
+    cityId?: string;
+    provinceId?: string;
+    isKidFriendly?: boolean;
+  }): Promise<Event[]> {
     try {
-      const response = await this.get<Event[]>('/events');
-      
-      if (!response.success) {
-        console.log("Error Events:", response);
-        throw new Error(response.error || 'Failed to fetch events');
+      const response = await this.get<ApiResponse<Event[]>>("/events", {
+        params: filters,
+      });
+
+      // Type guard to ensure we return an array of events
+      if (isApiResponse<Event[]>(response) && response.data) {
+        return response.data;
       }
-      
-      return response.data || [];
+
+      return [];
     } catch (error) {
       console.error("Failed to fetch events:", error);
-      throw error;
+      return [];
+    }
+  }
+
+  /**
+   * Search events by query
+   * @param query Search query string
+   * @param options Optional search options
+   */
+  static async searchEvents(
+    query: string,
+    options?: {
+      limit?: number;
+      cityId?: string;
+      provinceId?: string;
+    }
+  ): Promise<Event[]> {
+    try {
+      const response = await this.get<ApiResponse<Event[]>>("/events/search", {
+        params: {
+          query,
+          limit: options?.limit || 5,
+          cityId: options?.cityId,
+          provinceId: options?.provinceId,
+        },
+      });
+
+      // Type guard to ensure we return an array of events
+      if (isApiResponse<Event[]>(response) && response.data) {
+        return response.data;
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Failed to search events:", error);
+      return [];
     }
   }
 
@@ -31,13 +72,15 @@ export class EventService extends BaseApiService {
    */
   static async fetchTrendingEvents(): Promise<Event[]> {
     try {
-      const response = await this.get<Event[]>('/events/trending');
+      const response = await this.get<Event[]>("/events/trending");
+
+      console.log('Trending Events:', JSON.stringify(response, null, 2));
 
       if (!response.success) {
         console.log("Error Trending:", response);
-        throw new Error(response.error || 'Failed to fetch trending events');
+        throw new Error(response.error || "Failed to fetch trending events");
       }
-      
+
       return response.data || [];
     } catch (error) {
       console.error("Failed to fetch trending events:", error);
@@ -53,11 +96,11 @@ export class EventService extends BaseApiService {
   static async fetchEventsByCity(cityId: string): Promise<Event[]> {
     try {
       const response = await this.get<Event[]>(`/cities/${cityId}/events`);
-      
+
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch events by city');
+        throw new Error(response.error || "Failed to fetch events by city");
       }
-      
+
       return response.data || [];
     } catch (error) {
       console.error("Failed to fetch events by city:", error);
@@ -73,11 +116,11 @@ export class EventService extends BaseApiService {
   static async getEventById(eventId: string): Promise<Event | null> {
     try {
       const response = await this.get<Event>(`/events/${eventId}`);
-      
+
       if (!response.success) {
-        throw new Error(response.error || 'Failed to get event by ID');
+        throw new Error(response.error || "Failed to get event by ID");
       }
-      
+
       return response.data;
     } catch (error) {
       console.error("Failed to get event by ID:", error);
@@ -92,16 +135,50 @@ export class EventService extends BaseApiService {
    */
   static async createEvent(eventData: Partial<Event>): Promise<Event> {
     try {
-      const response = await this.post<Partial<Event>, Event>('/events', eventData);
-      
+      const formData = new FormData();
+
+      Object.entries(eventData).forEach(([key, value]) => {
+        if (key === "image" && Array.isArray(value) && value[0]) {
+          // Only support single image for now
+          const image = value[0];
+          if (typeof image === "string") {
+            // Try to guess filename and type
+            const uri = image;
+            const filename = uri.split("/").pop() || "image.jpg";
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : `image`;
+            formData.append("image", {
+              uri,
+              name: filename,
+              type,
+            } as any);
+          } else {
+            // If already a File/Blob
+            formData.append("image", image);
+          }
+        } else if (value !== undefined && value !== null) {
+          if (typeof value === "object" && !Array.isArray(value)) {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value as any);
+          }
+        }
+      });
+
+      const response = await this.post<FormData, Event>("/events", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
       if (!response.success) {
-        throw new Error(response.error || 'Failed to create event');
+        throw new Error(response.error || "Failed to create event");
       }
-      
+
       if (!response.data) {
-        throw new Error('No event data returned');
+        throw new Error("No event data returned");
       }
-      
+
       return response.data;
     } catch (error) {
       console.error("Failed to create event:", error);
@@ -116,20 +193,23 @@ export class EventService extends BaseApiService {
    * @returns Promise resolving to the updated event
    */
   static async updateEvent(
-    eventId: string, 
+    eventId: string,
     eventData: Partial<Event>
   ): Promise<Event> {
     try {
-      const response = await this.put<Partial<Event>, Event>(`/events/${eventId}`, eventData);
-      
+      const response = await this.put<Partial<Event>, Event>(
+        `/events/${eventId}`,
+        eventData
+      );
+
       if (!response.success) {
-        throw new Error(response.error || 'Failed to update event');
+        throw new Error(response.error || "Failed to update event");
       }
-      
+
       if (!response.data) {
-        throw new Error('No updated event data returned');
+        throw new Error("No updated event data returned");
       }
-      
+
       return response.data;
     } catch (error) {
       console.error("Failed to update event:", error);
@@ -145,11 +225,11 @@ export class EventService extends BaseApiService {
   static async deleteEvent(eventId: string): Promise<boolean> {
     try {
       const response = await this.delete(`/events/${eventId}`);
-      
+
       if (!response.success) {
-        throw new Error(response.error || 'Failed to delete event');
+        throw new Error(response.error || "Failed to delete event");
       }
-      
+
       return true;
     } catch (error) {
       console.error("Failed to delete event:", error);
@@ -165,15 +245,33 @@ export class EventService extends BaseApiService {
   static async fetchEventsByUser(userId: string): Promise<Event[]> {
     try {
       const response = await this.get<Event[]>(`/users/${userId}/events`);
-      
+
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch events by user');
+        throw new Error(response.error || "Failed to fetch events by user");
       }
-      
+
       return response.data || [];
     } catch (error) {
       console.error("Failed to fetch events by user:", error);
       throw error;
     }
   }
-} 
+
+  /**
+   * Update event views
+   * @param eventId Event's unique identifier
+   * @returns Promise resolving to the update result
+   */
+  static async updateEventViews(eventId: string): Promise<void> {
+    try {
+      const response = await this.post(`/events/${eventId}/views`);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update event views");
+      }
+    } catch (error) {
+      console.error("Failed to update event views:", error);
+      throw error;
+    }
+  }
+}
