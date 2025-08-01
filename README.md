@@ -98,3 +98,66 @@ This project is a fork of [Suryaalghifari/Cultour](https://github.com/Suryaalghi
 ---
 
 **Happy Cultural Exploring! 🌍🏺**
+
+## 🚧 TODO and Future Improvements
+
+### Pending Features
+- [ ] Implement full offline mode support
+- [ ] Add comprehensive user profile customization
+- [ ] Develop advanced search and filter for cultural events
+- [ ] Create recommendation system based on user interests
+- [ ] Implement multi-language support
+
+### Performance Enhancements
+- [ ] Optimize database queries and caching
+- [ ] Improve app loading and rendering performance
+- [ ] Implement more efficient state management
+- [ ] Reduce bundle size and improve app startup time
+
+### User Experience Improvements
+- [ ] Enhance accessibility features
+- [ ] Implement more detailed onboarding process
+- [ ] Add dark mode support
+- [ ] Create more interactive UI animations
+- [ ] Improve error handling and user feedback
+
+### Design Improvements
+- [ ] Create a cohesive and intuitive design system
+- [ ] Develop a unique visual identity for the app
+- [ ] Design culturally sensitive and inclusive UI elements
+- [ ] Create custom icons and illustrations
+- [ ] Implement responsive design for various device sizes
+- [ ] Develop design guidelines for consistent user experience
+- [ ] Create wireframes and mockups for new features
+- [ ] Conduct user experience (UX) research and testing
+
+### Security Enhancements
+- [ ] Implement advanced user authentication methods
+- [ ] Add two-factor authentication
+- [ ] Enhance data encryption for sensitive user information
+- [ ] Implement more robust input validation
+
+### AI and Machine Learning
+- [ ] Develop more advanced AI-powered cultural insights
+- [ ] Create personalized event recommendations
+- [ ] Implement natural language processing for local stories
+- [ ] Add AI-assisted translation for cultural content
+
+### Community and Social Features
+- [ ] Develop a more robust discussion and messaging system
+- [ ] Add social sharing capabilities
+- [ ] Implement user-generated content moderation
+- [ ] Create community challenge and achievement systems
+
+### Testing and Quality Assurance
+- [ ] Increase test coverage for frontend and backend
+- [ ] Implement continuous integration and deployment (CI/CD)
+- [ ] Add comprehensive error logging and monitoring
+- [ ] Develop more extensive unit and integration tests
+
+### Known Limitations
+- Performance may vary on older devices
+- Limited cultural content in certain regions
+- Potential scalability challenges with growing user base
+
+**Note**: This list is dynamic and will be updated as the project evolves. Contributions and suggestions are welcome!

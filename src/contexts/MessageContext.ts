@@ -17,6 +17,8 @@ export interface MessageContextType {
   // Discussion Message Methods
   fetchThreadMessages: (threadId: string) => Promise<void>;
   sendDiscussionMessage: (threadId: string, content: string) => Promise<DiscussionMessage | null>;
+  updateDiscussionMessage: (messageId: string, content: string) => Promise<DiscussionMessage | null>;
+  deleteDiscussionMessage: (messageId: string) => Promise<boolean>;
 
   clearError: () => void;
 }

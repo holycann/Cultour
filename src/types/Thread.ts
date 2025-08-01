@@ -5,12 +5,14 @@ export interface Thread {
   id: string;
   event_id: string;
   creator_id: string;
-  participants: string[]; // User IDs
+  discussion_participants: {
+    thread_id: string;
+    user_id: string;
+  }[];
   created_at: Date;
   updated_at?: Date;
   messages_count: number;
-  last_message_at?: Date;
-  status: 'active' | 'closed';
+  status: "active" | "closed";
 }
 
 /**
@@ -26,13 +28,16 @@ export interface ThreadCreateData {
  */
 export interface ThreadJoinData {
   thread_id: string;
-  user_id: string;
+  event_id: string;
 }
 
 /**
  * Thread update data
  */
 export interface ThreadUpdateData {
-  status?: 'active' | 'closed';
-  participants?: string[]; // User IDs to add or remove
+  status?: "active" | "closed";
+  discussion_participants: {
+    thread_id: string;
+    user_id: string;
+  }[];
 }

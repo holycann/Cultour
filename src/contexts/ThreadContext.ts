@@ -6,15 +6,17 @@ import { createContext } from 'react';
  */
 export interface ThreadContextType {
   threads: Thread[];
-  currentThread?: Thread;
+  currentThread?: Thread | null;
   isLoading: boolean;
   error: string | null;
+  isCurrentUserParticipant: boolean;
 
   // Thread Methods
-  getThreadByEventId: (eventId: string) => Thread | undefined;
+  getThreadByEventId: (eventId: string, currentUserId?: string) => Promise<Thread | null>;
   createEventThread: (threadData: ThreadCreateData) => Promise<Thread | null>;
   joinEventThread: (joinData: ThreadJoinData) => Promise<Thread | null>;
   updateThread: (threadId: string, threadData: ThreadUpdateData) => Promise<Thread | null>;
+  checkCurrentUserParticipation: (thread?: Thread | null, currentUserId?: string) => boolean;
   
   clearError: () => void;
 }

@@ -96,7 +96,7 @@ export default function EventDetailScreen() {
                 className="bg-red-500 rounded-xl py-2 px-4 items-center"
                 style={{ minWidth: 100 }}
               >
-                <Text className="text-red-700 font-bold">Delete</Text>
+                <Text className="text-black font-bold">Delete</Text>
               </TouchableOpacity>
             </View>
           )}

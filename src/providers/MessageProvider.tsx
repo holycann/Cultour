@@ -24,6 +24,8 @@ type MessageAction =
   | { type: "CLEAR_EVENT_AI_CHAT"; payload: string }
   | { type: "DISCUSSION_MESSAGES_SUCCESS"; payload: DiscussionMessage[] }
   | { type: "ADD_DISCUSSION_MESSAGE"; payload: DiscussionMessage }
+  | { type: "UPDATE_DISCUSSION_MESSAGE"; payload: DiscussionMessage }
+  | { type: "DELETE_DISCUSSION_MESSAGE"; payload: string }
   | { type: "MESSAGE_ERROR"; payload: string }
   | { type: "MESSAGE_CLEAR_ERROR" }
   | { type: "MESSAGE_RESET" };
@@ -75,6 +77,18 @@ function messageReducer(state: MessageState, action: MessageAction): MessageStat
       return { 
         ...state, 
         discussionMessages: [...state.discussionMessages, action.payload],
+      };
+    case "UPDATE_DISCUSSION_MESSAGE":
+      return {
+        ...state,
+        discussionMessages: state.discussionMessages.map(msg => 
+          msg.id === action.payload.id ? action.payload : msg
+        )
+      };
+    case "DELETE_DISCUSSION_MESSAGE":
+      return {
+        ...state,
+        discussionMessages: state.discussionMessages.filter(msg => msg.id !== action.payload)
       };
     case "MESSAGE_ERROR":
       return { ...state, isLoading: false, error: action.payload };
@@ -200,6 +214,54 @@ export function MessageProvider({ children }: MessageProviderProps) {
   );
 
   /**
+   * Update discussion message
+   */
+  const updateDiscussionMessage = useCallback(
+    async (messageId: string, content: string) => {
+      dispatch({ type: "MESSAGE_START" });
+
+      try {
+        const updatedMessage = await MessageService.updateDiscussionMessage(messageId, content);
+
+        if (updatedMessage) {
+          dispatch({ type: "UPDATE_DISCUSSION_MESSAGE", payload: updatedMessage });
+          return updatedMessage;
+        }
+
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal memperbarui pesan diskusi");
+        return null;
+      }
+    },
+    [handleError]
+  );
+
+  /**
+   * Delete discussion message
+   */
+  const deleteDiscussionMessage = useCallback(
+    async (messageId: string) => {
+      dispatch({ type: "MESSAGE_START" });
+
+      try {
+        const isDeleted = await MessageService.deleteDiscussionMessage(messageId);
+
+        if (isDeleted) {
+          dispatch({ type: "DELETE_DISCUSSION_MESSAGE", payload: messageId });
+          return true;
+        }
+
+        return false;
+      } catch (error) {
+        handleError(error, "Gagal menghapus pesan diskusi");
+        return false;
+      }
+    },
+    [handleError]
+  );
+
+  /**
    * Clear error state
    */
   const clearError = useCallback(() => {
@@ -224,6 +286,8 @@ export function MessageProvider({ children }: MessageProviderProps) {
         clearEventAiChat,
         fetchThreadMessages,
         sendDiscussionMessage,
+        updateDiscussionMessage,
+        deleteDiscussionMessage,
         clearError,
       };
     },
@@ -236,6 +300,8 @@ export function MessageProvider({ children }: MessageProviderProps) {
       clearEventAiChat,
       fetchThreadMessages,
       sendDiscussionMessage,
+      updateDiscussionMessage,
+      deleteDiscussionMessage,
       clearError,
     ]
   );

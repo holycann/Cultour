@@ -63,6 +63,55 @@ export class MessageService extends BaseApiService {
   }
 
   /**
+   * Update a discussion message
+   * @param messageId Message identifier
+   * @param content Updated message content
+   * @returns Promise resolving to updated discussion message or null
+   */
+  static async updateDiscussionMessage(
+    messageId: string,
+    content: string
+  ): Promise<DiscussionMessage | null> {
+    try {
+      const response = await this.put<
+        { content: string },
+        DiscussionMessage
+      >(`/messages/${messageId}`, { content });
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update discussion message");
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Failed to update discussion message:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a discussion message
+   * @param messageId Message identifier
+   * @returns Promise resolving to boolean indicating success
+   */
+  static async deleteDiscussionMessage(
+    messageId: string
+  ): Promise<boolean> {
+    try {
+      const response = await this.delete<void>(`/messages/${messageId}`);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to delete discussion message");
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Failed to delete discussion message:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetch messages for a specific thread
    * @param threadId Thread identifier
    * @returns Promise resolving to list of discussion messages
@@ -71,15 +120,18 @@ export class MessageService extends BaseApiService {
     threadId: string
   ): Promise<DiscussionMessage[]> {
     try {
-      const response = await this.get<DiscussionMessage[]>(
-        `/threads/${threadId}/messages`
+      const response = await this.get<(DiscussionMessage & { user_id: string })[]>(
+        `/messages/thread/${threadId}`
       );
 
       if (!response.success) {
         throw new Error(response.error || "Failed to fetch thread messages");
       }
 
-      return response.data || [];
+      return (response.data || []).map(message => ({
+        ...message,
+        sender_id: message.user_id
+      }));
     } catch (error) {
       console.error("Failed to fetch thread messages:", error);
       throw error;

@@ -74,8 +74,6 @@ export class EventService extends BaseApiService {
     try {
       const response = await this.get<Event[]>("/events/trending");
 
-      console.log('Trending Events:', JSON.stringify(response, null, 2));
-
       if (!response.success) {
         console.log("Error Trending:", response);
         throw new Error(response.error || "Failed to fetch trending events");

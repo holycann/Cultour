@@ -1,4 +1,9 @@
-import { Thread, ThreadCreateData, ThreadJoinData, ThreadUpdateData } from "@/types/Thread";
+import {
+  Thread,
+  ThreadCreateData,
+  ThreadJoinData,
+  ThreadUpdateData,
+} from "@/types/Thread";
 import { BaseApiService } from "./baseApiService";
 
 /**
@@ -16,7 +21,7 @@ export class ThreadService extends BaseApiService {
 
       if (!response.success) {
         // If no thread exists, return null (not an error)
-        if (response.error?.includes('Thread not found')) {
+        if (response.error?.includes("Thread not found")) {
           return null;
         }
         throw new Error(response.error || "Failed to get thread");
@@ -34,7 +39,9 @@ export class ThreadService extends BaseApiService {
    * @param threadData Thread creation data
    * @returns Promise resolving to created thread or null
    */
-  static async createEventThread(threadData: ThreadCreateData): Promise<Thread | null> {
+  static async createEventThread(
+    threadData: ThreadCreateData
+  ): Promise<Thread | null> {
     try {
       const response = await this.post<ThreadCreateData, Thread>(
         "/threads",
@@ -57,11 +64,12 @@ export class ThreadService extends BaseApiService {
    * @param joinData Thread join data
    * @returns Promise resolving to updated thread or null
    */
-  static async joinEventThread(joinData: ThreadJoinData): Promise<Thread | null> {
+  static async joinEventThread(
+    joinData: ThreadJoinData
+  ): Promise<Thread | null> {
     try {
       const response = await this.post<ThreadJoinData, Thread>(
-        `/threads/${joinData.thread_id}/join`,
-        joinData
+        `/threads/${joinData.thread_id}/join?event_id=${joinData.event_id}`
       );
 
       if (!response.success) {
@@ -82,7 +90,7 @@ export class ThreadService extends BaseApiService {
    * @returns Promise resolving to updated thread or null
    */
   static async updateThread(
-    threadId: string, 
+    threadId: string,
     threadData: ThreadUpdateData
   ): Promise<Thread | null> {
     try {
