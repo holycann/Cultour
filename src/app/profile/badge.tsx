@@ -1,4 +1,5 @@
 import DetailHeader from "@/app/components/DetailHeader";
+import { useAuth } from "@/hooks/useAuth";
 import { useBadge } from "@/hooks/useBadge";
 import { Badge } from "@/types/Badge";
 import React, { useEffect } from "react";
@@ -6,11 +7,16 @@ import { Image, ScrollView, StatusBar, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function BadgeScreen() {
-  const { badges, isLoading, error, fetchBadges } = useBadge();
+  const { user } = useAuth();
+  const { badges, userBadges, isLoading, error, fetchBadges, fetchUserBadges } =
+    useBadge();
 
   useEffect(() => {
     fetchBadges();
-  }, []);
+    if (user) {
+      fetchUserBadges(user.id);
+    }
+  }, [user]);
 
   if (isLoading || error) {
     return (
@@ -28,11 +34,11 @@ export default function BadgeScreen() {
   }
 
   // Separate my badges and available badges
-  const myBadges: Badge[] = badges.filter(
-    (badge) => badge.name === "Explorer" || badge.name === "Warlok"
+  const myBadges: Badge[] = badges.filter((badge) =>
+    userBadges.some((userBadge) => userBadge.badge_id === badge.id)
   );
   const availableBadges: Badge[] = badges.filter(
-    (badge) => badge.name !== "Explorer" && badge.name !== "Warlok"
+    (badge) => !userBadges.some((userBadge) => userBadge.badge_id === badge.id)
   );
 
   return (
@@ -47,7 +53,15 @@ export default function BadgeScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ flexGrow: 1, backgroundColor: "white", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          backgroundColor: "white",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          paddingHorizontal: 24,
+          paddingTop: 32,
+          paddingBottom: 32,
+        }}
         showsVerticalScrollIndicator={false}
       >
         {/* My Badges Section */}

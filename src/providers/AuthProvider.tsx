@@ -1,7 +1,8 @@
 import { supabase } from "@/config/supabase";
 import { AuthContext } from '@/contexts/AuthContext';
 import { AuthService } from '@/services/authService';
-import { AuthCredentials, AuthUser, RegistrationData } from "@/types/User";
+import { UserService } from "@/services/userService";
+import { AuthCredentials, AuthUser, RegistrationData, UserProfile } from "@/types/User";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import { logger } from "@/utils/logger";
 import React, { ReactNode, useCallback, useEffect, useMemo, useReducer } from 'react';
@@ -139,16 +140,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const user = await AuthService.register(registrationData);
 
-        dispatch({
-          type: "AUTH_SUCCESS",
-          payload: user,
-        });
-        showDialogSuccess("Success", "Registrasi berhasil!");
-        return true;
+        if (user) {
+          dispatch({
+            type: "AUTH_SUCCESS",
+            payload: user,
+          });
+
+          // Create user profile after successful registration
+          const userProfileData: Partial<UserProfile> = {
+            user_id: user.id,
+            fullname: registrationData.fullname || user.email.split('@')[0],
+            bio: '',
+            avatar_url: '',
+            identity_image_url: '',
+          };
+
+          const profileCreated = await UserService.createUserProfile(userProfileData);
+
+          if (!profileCreated) {
+            throw new Error("Gagal membuat profil pengguna");
+          }
+
+          showDialogSuccess("Success", "Registrasi berhasil!");
+          return true;
+        }
+
+        return false;
       } catch (error: unknown) {
         const errorMessage = 
           error instanceof Error ? error.message : "Terjadi kesalahan saat registrasi";
 
+        logger.error("Auth", "Error Register", error);
         dispatch({ type: "AUTH_ERROR", payload: errorMessage });
         showDialogError("Error", errorMessage);
         return false;

@@ -2,13 +2,14 @@
 import Button from "@/components/atoms/Button";
 import { Typography } from "@/constants/Typography";
 import { useAuth } from "@/hooks/useAuth";
+import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import { logger } from "@/utils/logger";
 import { hasErrors, validate, validators } from "@/utils/validation";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
   Image,
   ScrollView,
   Text,
@@ -38,7 +39,7 @@ export default function RegisterPage() {
         validators.required("Password is required"),
         validators.minLength(6, "Password must be at least 6 characters"),
       ],
-      displayName: [
+      fullname: [
         validators.required("Display name is required"),
         validators.minLength(2, "Display name must be at least 2 characters"),
       ],
@@ -68,33 +69,20 @@ export default function RegisterPage() {
       const result = await register({
         email,
         password,
-        fullname: fullname,
+        fullname,
       });
 
       if (result) {
         logger.log("RegisterPage", "Registration Successful");
+        showDialogSuccess("Success", "Registration successful!");
         router.replace("/(tabs)");
-      } else {
-        logger.error(
-          "RegisterPage",
-          "Registration Failed",
-          "Unable to create account"
-        );
-        Alert.alert(
-          "Registration Failed",
-          "Unable to create account. Please try again."
-        );
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unexpected error occurred";
 
       logger.error("RegisterPage", "Registration Error", errorMessage);
-
-      Alert.alert(
-        "Registration Error",
-        errorMessage || "Unable to complete registration"
-      );
+      showDialogError("Registration Error", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -106,17 +94,22 @@ export default function RegisterPage() {
   };
 
   const handleGoogleSignUp = async () => {
+    logger.log("RegisterPage", "Google Login Attempt");
+    setIsLoading(true);
     try {
-      logger.log("RegisterPage", "Google Registration Attempt");
-      await loginWithOAuth("google");
+      const result = await loginWithOAuth('google');
+      if (result) {
+        showDialogSuccess("Success", "Google login successful!");
+        router.replace("/(tabs)");
+      }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Gagal melakukan registrasi dengan Google";
-
-      Alert.alert("Error", errorMessage);
-      logger.error("RegisterPage", "Google Registration Error", errorMessage);
+      const errorMessage = 
+        error instanceof Error ? error.message : "Google login failed";
+      
+      logger.error("RegisterPage", "Google Login Error", error);
+      showDialogError("Login Error", errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -127,24 +120,24 @@ export default function RegisterPage() {
     >
       <View className="flex-1 justify-center">
         {/* Logo Section */}
-        <View className="items-center">
+        <View className="items-center mb-6">
           <Image
             source={require("@/assets/images/splash.png")}
-            style={{ width: 263, height: 263 }}
+            className="w-[263px] h-[263px]"
             resizeMode="contain"
           />
         </View>
 
         {/* Title */}
         <Text
-          className="mb-8 text-[#1A1A1A]"
-          style={[Typography.styles.title, { textAlign: "left" }]}
+          className="mb-6 text-[#1A1A1A] text-center"
+          style={Typography.styles.title}
         >
           Sign Up
         </Text>
 
         {/* Display Name Input */}
-        <View className="mb-6">
+        <View className="mb-4">
           <Text className="mb-2 text-[#1A1A1A]" style={Typography.styles.body}>
             Display Name
           </Text>
@@ -173,7 +166,7 @@ export default function RegisterPage() {
         </View>
 
         {/* Email Input */}
-        <View className="mb-6">
+        <View className="mb-4">
           <Text className="mb-2 text-[#1A1A1A]" style={Typography.styles.body}>
             Email
           </Text>
@@ -204,7 +197,7 @@ export default function RegisterPage() {
         </View>
 
         {/* Password Input */}
-        <View className="mb-8">
+        <View className="mb-6">
           <Text className="mb-2 text-[#1A1A1A]" style={Typography.styles.body}>
             Password
           </Text>
@@ -242,7 +235,7 @@ export default function RegisterPage() {
 
         {/* Disclaimer */}
         <Text
-          className="text-[#666] text-sm mb-8 leading-5"
+          className="text-[#666] text-sm text-center mb-6 leading-5"
           style={Typography.styles.body}
         >
           By signing up, you&apos;ve agree to our{" "}
@@ -251,19 +244,33 @@ export default function RegisterPage() {
         </Text>
 
         {/* Buttons */}
-        <Button
-          label="Continue"
-          onPress={handleContinue}
-          className="w-[197px] h-[32px] mb-4 self-center"
-          disabled={isLoading}
-        />
-        <Button
-          label="Continue with Google"
-          onPress={handleGoogleSignUp}
-          className="w-[197px] h-[32px] mb-4 self-center"
-          variant="secondary"
-          disabled={isLoading}
-        />
+        <View className="items-center mb-4">
+          <Button
+            onPress={handleContinue}
+            className="w-full max-w-[300px] py-3"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white text-center">Continue</Text>
+            )}
+          </Button>
+        </View>
+        <View className="items-center mb-6">
+          <Button
+            onPress={handleGoogleSignUp}
+            className="w-full max-w-[300px] py-3"
+            variant="secondary"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="black" />
+            ) : (
+              <Text className="text-black text-center">Continue with Google</Text>
+            )}
+          </Button>
+        </View>
 
         {/* Login Link */}
         <View className="items-center">

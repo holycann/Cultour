@@ -31,7 +31,7 @@ export class BadgeService extends BaseApiService {
    */
   static async fetchUserBadges(userId: string): Promise<UserBadge[]> {
     try {
-      const response = await this.get<UserBadge[]>(`/users/${userId}/badges`);
+      const response = await this.get<UserBadge[]>(`/users/badges/${userId}`);
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch user badges');

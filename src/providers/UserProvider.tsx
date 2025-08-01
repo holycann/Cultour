@@ -111,6 +111,38 @@ export function UserProvider({ children }: UserProviderProps) {
   );
 
   /**
+   * Create user profile
+   */
+  const createUserProfile = useCallback(
+    async (userProfileData: Partial<UserProfile>) => {
+      dispatch({ type: "USER_START" });
+
+      try {
+        const createdProfile = await UserService.createUserProfile(userProfileData);
+
+        if (createdProfile) {
+          dispatch({
+            type: "USER_SUCCESS",
+            payload: {
+              user: state.user,
+              profile: createdProfile,
+            },
+          });
+
+          showDialogSuccess("Berhasil", "Profil pengguna berhasil dibuat");
+          return true;
+        }
+
+        return false;
+      } catch (error) {
+        handleError(error, "Gagal membuat profil pengguna");
+        return false;
+      }
+    },
+    [state.user, handleError]
+  );
+
+  /**
    * Update user profile
    */
   const updateProfile = useCallback(
@@ -261,6 +293,7 @@ export function UserProvider({ children }: UserProviderProps) {
       isLoading: state.isLoading,
       error: state.error,
       fetchUserProfile,
+      createUserProfile,
       updateProfile,
       updateUser,
       uploadAvatar,
@@ -273,6 +306,7 @@ export function UserProvider({ children }: UserProviderProps) {
       state.isLoading,
       state.error,
       fetchUserProfile,
+      createUserProfile,
       updateProfile,
       updateUser,
       uploadAvatar,

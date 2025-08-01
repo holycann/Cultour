@@ -1,9 +1,10 @@
 import Colors from '@/constants/Colors';
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { StyleProp, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 
 type ButtonProps = {
-  label: string;
+  label?: string;
+  children?: ReactNode;
   onPress: () => void;
   className?: string;
   style?: StyleProp<ViewStyle>;
@@ -14,6 +15,7 @@ type ButtonProps = {
 
 export default function Button({
   label, 
+  children,
   onPress, 
   className = '', 
   style,
@@ -48,7 +50,8 @@ export default function Button({
       className={className}
       disabled={disabled}
     >
-      <Text style={[baseLabelStyle, labelStyle]}>{label}</Text>
+      {label && <Text style={[baseLabelStyle, labelStyle]}>{label}</Text>}
+      {children}
     </TouchableOpacity>
   );
 } 

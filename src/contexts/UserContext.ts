@@ -10,6 +10,7 @@ export interface UserContextType {
   isLoading: boolean;
   error: string | null;
   fetchUserProfile: (userId: string) => Promise<void>;
+  createUserProfile: (userProfileData: Partial<UserProfile>) => Promise<boolean>;
   updateProfile: (profileData: Partial<UserProfile>) => Promise<boolean>;
   updateUser: (userData: Partial<User>) => Promise<boolean>;
   uploadAvatar: (

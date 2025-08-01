@@ -10,7 +10,7 @@ export interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (credentials: AuthCredentials) => Promise<boolean>;
-  register: (data: RegistrationData) => Promise<boolean>;
+  register: (registrationData: RegistrationData) => Promise<boolean>;
   loginWithOAuth: (provider: 'google' | 'apple' | 'github') => Promise<boolean>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<boolean>;

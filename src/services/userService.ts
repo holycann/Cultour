@@ -7,6 +7,31 @@ import { BaseApiService } from "./baseApiService";
  */
 export class UserService extends BaseApiService {
   /**
+   * Create a new user profile
+   * @param userProfileData User profile data for creating a new profile
+   * @returns Promise resolving to created UserProfile or null
+   */
+  static async createUserProfile(
+    userProfileData: Partial<UserProfile>
+  ): Promise<UserProfile | null> {
+    try {
+      const response = await this.post<Partial<UserProfile>, UserProfile>(
+        "/profile",
+        userProfileData
+      );
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create user profile");
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Failed to create user profile:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Get user by ID
    * @param userId User's unique identifier
    * @returns Promise resolving to User or null

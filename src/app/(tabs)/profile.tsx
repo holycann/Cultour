@@ -45,16 +45,6 @@ export default function ProfileIndexScreen() {
     );
   }
 
-  if (error) {
-    return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#F9EFE4] justify-center items-center">
-        <Text className="text-red-500 text-center">
-          {error || "Failed to load profile"}
-        </Text>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView className="flex-1 bg-[#F9EFE4]">
       <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />

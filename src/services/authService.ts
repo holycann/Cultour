@@ -62,7 +62,6 @@ export class AuthService {
   static async register({
     email,
     password,
-    fullname,
   }: RegistrationData): Promise<AuthUser | null> {
     // Validate inputs
     if (!email || !password) {
@@ -81,12 +80,6 @@ export class AuthService {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            fullname,
-          },
-          emailRedirectTo: "cultour://verify-email", // Custom deep link
-        },
       });
 
       if (error) {
@@ -100,7 +93,12 @@ export class AuthService {
         }
       }
 
-      return data.user ? this.mapSupabaseUserToAuthUser(data.user) : null;
+      // If user is created successfully, return auth user
+      if (data.user) {
+        return this.mapSupabaseUserToAuthUser(data.user);
+      }
+
+      return null;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Gagal melakukan registrasi";
@@ -198,7 +196,9 @@ export class AuthService {
    */
   static async getAuthToken(): Promise<string | null> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       return session?.access_token || null;
     } catch (error) {
@@ -211,7 +211,9 @@ export class AuthService {
    * Get current authenticated user with token
    * @returns Promise resolving to authenticated user with token or null
    */
-  static async getCurrentUser(): Promise<(AuthUser & { token?: string }) | null> {
+  static async getCurrentUser(): Promise<
+    (AuthUser & { token?: string }) | null
+  > {
     try {
       const { data } = await supabase.auth.getUser();
       const { data: sessionData } = await supabase.auth.getSession();
@@ -219,10 +221,10 @@ export class AuthService {
       if (!data.user) return null;
 
       const authUser = this.mapSupabaseUserToAuthUser(data.user);
-      
+
       return {
         ...authUser,
-        token: sessionData.session?.access_token
+        token: sessionData.session?.access_token,
       };
     } catch (error) {
       console.error("Failed to get current user:", error);

@@ -136,10 +136,10 @@ export function BadgeProvider({ children }: BadgeProviderProps) {
         const data = await BadgeService.addBadgeToUser(userId, badgeId);
 
         // Optimistically update local state
-        dispatch((prev: BadgeState) => ({
-          ...prev,
-          userBadges: data ? [...prev.userBadges, data] : prev.userBadges,
-        }));
+        dispatch({
+          type: "BADGE_SUCCESS_USER", 
+          payload: data ? [...state.userBadges, data] : state.userBadges
+        });
 
         showDialogSuccess("Berhasil", "Badge berhasil ditambahkan");
         return true;
@@ -148,7 +148,7 @@ export function BadgeProvider({ children }: BadgeProviderProps) {
         return false;
       }
     },
-    [handleError]
+    [handleError, state.userBadges]
   );
 
   /**
