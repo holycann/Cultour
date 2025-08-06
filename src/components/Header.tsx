@@ -11,7 +11,7 @@ type HeaderProps = {
 };
 
 export default function Header({
-  title = 'Cultour',
+  title = 'Search events, cities, places...',
   showSearch = true,
   hidden = false,
   onSearch

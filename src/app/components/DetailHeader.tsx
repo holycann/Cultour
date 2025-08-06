@@ -15,7 +15,11 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
   const router = useRouter();
 
   const handleGoBack = () => {
-    router.back();
+    try {
+      router.back();
+    } catch {
+      router.replace("/(tabs)");
+    }
   };
 
   return (
@@ -23,7 +27,7 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
       {showBackButton && (
         <TouchableOpacity
           onPress={handleGoBack}
-          className="absolute left-4 top-1/2 -translate-y-1/2"
+          className="absolute left-4 top-2"
         >
           <Ionicons
             name="arrow-back-circle-outline"

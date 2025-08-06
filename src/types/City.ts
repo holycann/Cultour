@@ -6,7 +6,7 @@ export type City = {
   image_url?: string;
   created_at: string;
   updated_at: string;
-  Province?: Province; // Avoid circular dependency
+  province?: Province; // Avoid circular dependency
   locations?: Location[]; // Avoid circular dependency
   events?: Event[];
 };

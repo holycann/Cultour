@@ -30,22 +30,20 @@ export class BaseApiService {
         },
       });
 
-      console.log("Base URL:", this.axiosInstance.defaults.baseURL);
+      // console.log("Base URL:", this.axiosInstance.defaults.baseURL);
 
       // Request interceptor for adding auth token
       this.axiosInstance.interceptors.request.use(
         async (config: InternalAxiosRequestConfig) => {
           try {
             // Always get the latest token from AuthService (single source of truth)
-            let token = await AuthService.getAuthToken();
+            let token = await AsyncStorage.getItem("userToken");
 
             if (token) {
-              // Cache token in AsyncStorage for fallback (optional, but not as source of truth)
-              await AsyncStorage.setItem("userToken", token);
               config.headers.Authorization = `Bearer ${token}`;
             } else {
               // Fallback: try to get from AsyncStorage if AuthService fails
-              token = await AsyncStorage.getItem("userToken");
+              token = await AuthService.getAuthToken();
               if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
               }
@@ -64,11 +62,11 @@ export class BaseApiService {
       // Response interceptor for logging and error handling
       this.axiosInstance.interceptors.response.use(
         (response: AxiosResponse) => {
-          logger.log("BaseApiService", "API Response", {
-            url: response.config.url,
-            method: response.config.method,
-            status: response.status,
-          });
+          // logger.log("BaseApiService", "API Response", {
+          //   url: response.config.url,
+          //   method: response.config.method,
+          //   status: response.status,
+          // });
           return response;
         },
         async (error) => {

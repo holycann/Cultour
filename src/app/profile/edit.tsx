@@ -8,18 +8,17 @@ import React, { useEffect, useState } from "react";
 import {
   Image,
   ScrollView,
-  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { profile, updateProfile, uploadAvatar, isLoading, error } = useUser();
+  const { profile, updateProfile, uploadAvatar, isLoading } = useUser();
 
   const [fullname, setFullname] = useState("");
   const [bio, setBio] = useState("");
@@ -72,30 +71,33 @@ export default function EditProfileScreen() {
     }
   };
 
-  if (isLoading || error) {
+  if (isLoading) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-[#F9EFE4]">
-        <Text
-          className={`text-center ${error ? "text-red-500" : "text-[#4E7D79]"}`}
-        >
-          {error ? `Error: ${error}` : "Loading profile..."}
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 justify-center items-center bg-[#F9EFE4]"
+      >
+        <Text className={`text-center text-[#4E7D79]`}>
+          {"Loading profile..."}
         </Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
-      <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      className="flex-1 bg-[#EEC887]"
+    >
 
       {/* Custom Header */}
-      <DetailHeader title="Edit Profile" />
+      <DetailHeader title="Edit Profile" showBackButton={true} />
 
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
         }}
-        className="bg-white rounded-t-3xl px-6 pt-8"
+        className="bg-white rounded-t-3xl px-4 md:px-6 pt-6 md:pt-8"
       >
         {/* Avatar Picker */}
         <TouchableOpacity

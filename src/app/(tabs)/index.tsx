@@ -7,6 +7,7 @@ import { useUser } from "@/hooks/useUser";
 import { City } from "@/types/City";
 import { Event } from "@/types/Event";
 import { logger } from "@/utils/logger";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import {
@@ -37,8 +38,10 @@ export default function HomeScreen() {
 
   const {
     cities,
-    isLoading: citiesLoading,
     fetchCities,
+    fetchCityById,
+    getCityById,
+    isLoading: citiesLoading,
     error: citiesError,
   } = useCity();
 
@@ -46,17 +49,18 @@ export default function HomeScreen() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await fetchEvents();
-        await fetchTrendingEvents();
-        await fetchCities();
+        if (trendingEvents.length === 0) {
+          await fetchEvents();
+          await fetchTrendingEvents();
+        }
 
-        logger.log("HomeScreen", "Data Fetch Completed", {
-          eventCount: trendingEvents.length,
-          cityCount: cities.length,
-        });
+        if (cities.length === 0) {
+          await fetchCities({
+            limit: 10,
+          });
+        }
       } catch (error) {
         logger.error("HomeScreen", "Data Fetch Error", error);
-        console.error("Data Fetch Error:", error);
       }
     };
 
@@ -65,28 +69,22 @@ export default function HomeScreen() {
         await fetchUserProfile(userId);
       } catch (error) {
         logger.error("HomeScreen", "User Profile Fetch Error", error);
-        console.error("User Profile Fetch Error:", error);
       }
     };
 
-    if (trendingEvents.length === 0 || cities.length === 0) {
-      loadData();
-    }
+    loadData();
 
     if (user) {
-      logger.log("HomeScreen", "Fetching User Profile", { userId: user.id });
       fetchProfile(user.id);
     }
   }, [
     user,
-    cities,
     trendingEvents,
+    cities,
     fetchUserProfile,
     fetchEvents,
     fetchTrendingEvents,
     fetchCities,
-    trendingEvents.length,
-    cities.length,
   ]);
 
   // Log any errors
@@ -101,12 +99,6 @@ export default function HomeScreen() {
     }
   }, [eventsError, citiesError]);
 
-  // Helper function to get location by ID
-  const getCityById = (cityId: string) => {
-    const city = cities.find((city: City) => city.id === cityId);
-    return city;
-  };
-
   // Loading state
   if (eventsLoading || citiesLoading) {
     return (
@@ -114,7 +106,12 @@ export default function HomeScreen() {
         edges={["top", "left", "right"]}
         className="flex-1 justify-center items-center bg-white"
       >
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <View className="flex-col items-center justify-center">
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text className="mt-4 text-base text-gray-600">
+            Loading events...
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -141,10 +138,10 @@ export default function HomeScreen() {
   return (
     <ScrollView
       className="flex-1 bg-white"
-      contentContainerStyle={{ paddingBottom: 80 }}
+      contentContainerStyle={{ paddingBottom: 20 }}
     >
       {/* Section: Trending Events */}
-      <View className="px-6 mt-6">
+      <View className="px-6">
         <Text className="text-[#1A1A1A] mb-4" style={Typography.styles.title}>
           Trending Events
         </Text>
@@ -157,6 +154,9 @@ export default function HomeScreen() {
           contentContainerStyle={{ gap: 16 }}
           renderItem={({ item }: { item: Event }) => {
             const city = getCityById(item.city_id || "");
+            if (!city) {
+              fetchCityById(item.city_id || "");
+            }
             return (
               <TouchableOpacity
                 className="w-72 bg-[#F3DDBF] rounded-2xl p-3"
@@ -176,7 +176,7 @@ export default function HomeScreen() {
                   {item.name}
                 </Text>
                 <Text className="text-sm text-[#1A1A1A] opacity-70">
-                  📍 {city?.name}
+                  📍 {city?.name}, {city?.province?.name}
                 </Text>
               </TouchableOpacity>
             );
@@ -185,42 +185,33 @@ export default function HomeScreen() {
       </View>
 
       {/* Section: Place Recommendation */}
-      <View className="px-6 mt-10">
+      <View className="px-6 mt-6">
         <Text className="text-[#1A1A1A] mb-4" style={Typography.styles.title}>
           Place Recommendation
         </Text>
 
         {cities.map((city: City) => {
-          // Use a fallback image if city.image_url is missing or empty
-          const imageUrl =
-            city.image_url && city.image_url.trim() !== ""
-              ? city.image_url
-              : "https://placehold.co/72x72?text=City";
           return (
             <View key={city.id} className="flex-row items-center mb-4">
               <Image
-                source={{ uri: imageUrl }}
-                className="w-[72px] h-[72px] rounded-xl mr-3 border"
-                style={{
-                  backgroundColor: Colors.primary50,
-                  borderColor: Colors.primary,
-                }}
+                source={
+                  city.image_url && city.image_url.startsWith("http")
+                    ? { uri: city.image_url }
+                    : require("@/assets/images/logo.png")
+                }
+                className="w-[80px] h-[80px] rounded-xl mr-3"
+                width={80}
+                height={80}
                 resizeMode="cover"
-                defaultSource={require("@/assets/images/splash.png")}
+                defaultSource={require("@/assets/images/logo.png")}
               />
 
               <TouchableOpacity
-                className="flex-1 flex-row items-center rounded-2xl py-4 px-5 shadow-sm min-h-[72px]"
+                className="flex-1 flex-row items-center rounded-2xl py-4 px-5 min-h-[80px]"
                 style={{
                   backgroundColor: Colors.primary50,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 4,
-                  elevation: 2,
                 }}
                 onPress={() => {
-                  logger.log("HomeScreen", "City Pressed", { cityId: city.id });
                   router.push(`/place/${city.id}` as any);
                 }}
               >
@@ -235,11 +226,15 @@ export default function HomeScreen() {
                     className="text-[#1A1A1A] opacity-70"
                     style={Typography.styles.body}
                   >
-                    {city.Province?.name}
+                    {city.province?.name}
                   </Text>
                 </View>
                 <Text className="text-2xl text-[#1A1A1A] font-bold opacity-50 ml-3">
-                  {">"}
+                  <MaterialIcons
+                    name="arrow-forward-ios"
+                    size={20}
+                    color="#1A1A1A"
+                  />
                 </Text>
               </TouchableOpacity>
             </View>

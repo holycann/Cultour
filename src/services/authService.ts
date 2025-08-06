@@ -1,6 +1,7 @@
 import { supabase } from "@/config/supabase";
 import { AuthCredentials, AuthUser, RegistrationData } from "@/types/User";
 import { validateEmail, validatePassword } from "@/utils/validation";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
  * Authentication service for managing user authentication operations
@@ -112,14 +113,16 @@ export class AuthService {
    * @param provider OAuth provider name
    * @returns Promise resolving to authenticated user or null
    */
-  static async loginWithOAuth(
-    provider: "google" | "apple" | "github"
-  ): Promise<AuthUser | null> {
+  static async loginWithOAuth(provider: "google"): Promise<string> {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: "cultour://oauth-callback", // Custom deep link
+          redirectTo: "cultour://oauth-callback",
+          queryParams: {
+            prompt: "select_account",
+          },
+          skipBrowserRedirect: false,
           scopes: provider === "google" ? "email profile" : undefined,
         },
       });
@@ -128,7 +131,7 @@ export class AuthService {
         throw new Error(error.message || `Gagal login dengan ${provider}`);
       }
 
-      return null; // OAuth redirects, so we return null here
+      return data.url;
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -136,6 +139,25 @@ export class AuthService {
           : `Gagal login dengan ${provider}`;
 
       throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Exchange OAuth code for session
+   * @param code OAuth code received from provider
+   * @returns Promise resolving to void
+   */
+  static async exchangeCodeForSession(code: string): Promise<void> {
+    try {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        throw new Error(error.message || "Gagal menukar kode OAuth");
+      }
+    } catch (error) {
+      throw new Error(
+        error instanceof Error ? error.message : "Gagal menukar kode OAuth"
+      );
     }
   }
 
@@ -215,8 +237,8 @@ export class AuthService {
     (AuthUser & { token?: string }) | null
   > {
     try {
-      const { data } = await supabase.auth.getUser();
       const { data: sessionData } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getUser();
 
       if (!data.user) return null;
 
@@ -233,11 +255,26 @@ export class AuthService {
   }
 
   /**
+   * Set authentication token in storage
+   * @param token Authentication token to store
+   * @returns Promise resolving to boolean indicating success
+   */
+  static async setAuthToken(token: string): Promise<boolean> {
+    try {
+      await AsyncStorage.setItem("userToken", token);
+      return true;
+    } catch (error) {
+      console.error("Failed to set auth token:", error);
+      return false;
+    }
+  }
+
+  /**
    * Map Supabase user to AuthUser type
    * @param user Supabase user object
    * @returns Mapped AuthUser
    */
-  private static mapSupabaseUserToAuthUser(user: any): AuthUser {
+  static mapSupabaseUserToAuthUser(user: any): AuthUser {
     return {
       id: user.id,
       email: user.email,

@@ -4,27 +4,29 @@ import { useCity } from "@/hooks/useCity";
 import { useEvent } from "@/hooks/useEvent";
 import { useProvince } from "@/hooks/useProvince";
 import { useUser } from "@/hooks/useUser";
+import * as FileSystem from "expo-file-system";
 import {
-    Alert,
-    Dimensions,
-    Image,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import DatePicker from "react-native-date-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { Dropdown } from "react-native-element-dropdown";
 
+import Colors from "@/constants/Colors";
 import { useAuth } from "@/hooks/useAuth";
-import { Picker } from "@react-native-picker/picker";
 
 export default function EditEventScreen() {
   const router = useRouter();
@@ -41,21 +43,19 @@ export default function EditEventScreen() {
   const [eventDescription, setEventDescription] = useState("");
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date());
   const [selectedProvince, setSelectedProvince] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{
     latitude?: number;
     longitude?: number;
     name?: string;
   }>({});
   const [isFullScreenMapVisible, setIsFullScreenMapVisible] = useState(false);
+  const [provinceIsFocus, setProvinceIsFocus] = useState(false);
+  const [cityIsFocus, setCityIsFocus] = useState(false);
 
   // Cek status autentikasi dan verifikasi
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function EditEventScreen() {
       // Cek apakah user sudah login
       if (!user) {
         Alert.alert("Login Required", "Please login to edit an event", [
-          { text: "Login", onPress: () => router.push("/auth/login") },
+          { text: "Login", onPress: () => router.replace("/auth/login") },
         ]);
         return;
       }
@@ -76,7 +76,7 @@ export default function EditEventScreen() {
           [
             {
               text: "Verify Identity",
-              onPress: () => router.push("/profile/verify"),
+              onPress: () => router.replace("/profile/verify"),
             },
           ]
         );
@@ -91,46 +91,62 @@ export default function EditEventScreen() {
   useEffect(() => {
     const fetchEventDetails = async () => {
       if (eventId) {
-        const fetchedEvent = await getEventById(eventId);
+        if (!event || event.id !== eventId) {
+          await getEventById(eventId);
+        }
 
-        if (fetchedEvent) {
+        if (event) {
           // Populate form with existing event data
-          setEventTitle(fetchedEvent.name || "");
-          setEventDescription(fetchedEvent.description || "");
+          setEventTitle(event.name || "");
+          setEventDescription(event.description || "");
 
           // Set dates and times
-          if (fetchedEvent.start_date) {
-            const startDateTime = new Date(fetchedEvent.start_date);
+          if (event.start_date) {
+            const startDateTime = new Date(event.start_date);
             setStartDate(startDateTime);
-            setStartTime(startDateTime);
           }
 
-          if (fetchedEvent.end_date) {
-            const endDateTime = new Date(fetchedEvent.end_date);
+          if (event.end_date) {
+            const endDateTime = new Date(event.end_date);
             setEndDate(endDateTime);
-            setEndTime(endDateTime);
           }
 
           // Set province and city
-          if (fetchedEvent.province_id) {
-            setSelectedProvince(fetchedEvent.province_id);
+          if (event?.province_id) {
+            const province = provinces.find((p) => p.id === event?.province_id);
+            setSelectedProvince(province?.name || "");
           }
 
-          if (fetchedEvent.city_id) {
-            setSelectedCity(fetchedEvent.city_id);
+          if (event?.city_id) {
+            const city = cities.find((c) => c.id === event?.city_id);
+            setSelectedCity(city?.name || "");
           }
 
           // Set image
-          if (fetchedEvent.image && fetchedEvent.image.length > 0) {
-            setImage(fetchedEvent.image[0] || null);
+          if (event.image_url) {
+            const fileUri = FileSystem.documentDirectory + event.id + ".jpg";
+
+            // Check if file already exists before downloading
+            const fileInfo = await FileSystem.getInfoAsync(fileUri);
+            let downloadedFile;
+
+            if (!fileInfo.exists) {
+              downloadedFile = await FileSystem.downloadAsync(
+                event.image_url,
+                fileUri
+              );
+            } else {
+              downloadedFile = { uri: fileUri };
+            }
+            setImage(downloadedFile.uri);
           }
 
           // Set location
-          if (fetchedEvent.location) {
+          if (event.location) {
             setSelectedLocation({
-              latitude: fetchedEvent.location.latitude,
-              longitude: fetchedEvent.location.longitude,
-              name: fetchedEvent.location.name,
+              latitude: event.location.latitude,
+              longitude: event.location.longitude,
+              name: event.location.name,
             });
           }
         }
@@ -138,7 +154,7 @@ export default function EditEventScreen() {
     };
 
     fetchEventDetails();
-  }, [eventId, getEventById]);
+  }, [eventId, event]);
 
   // Fetch provinces and cities only once when the component first loads
   useEffect(() => {
@@ -149,8 +165,7 @@ export default function EditEventScreen() {
     if (cities.length === 0) {
       fetchCities();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [provinces, cities]);
 
   // Filter kota berdasarkan provinsi yang dipilih
   const filteredCities = cities.filter(
@@ -159,9 +174,9 @@ export default function EditEventScreen() {
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
-      aspect: [4, 3],
+      aspect: [1, 1],
       quality: 1,
     });
 
@@ -197,21 +212,23 @@ export default function EditEventScreen() {
       return;
     }
 
-    // Validasi tanggal
-    if (startDate > endDate) {
+    if (startDate >= endDate) {
+      Alert.alert("Error", "Waktu mulai harus lebih kecil dari waktu selesai");
+      return;
+    } else if (startDate < new Date()) {
       Alert.alert(
         "Error",
-        "Tanggal mulai tidak boleh lebih dari tanggal selesai"
+        "Waktu mulai tidak boleh kurang dari waktu sekarang"
       );
       return;
-    }
-
-    // Validasi waktu jika tanggal sama
-    if (
-      startDate.toDateString() === endDate.toDateString() &&
-      startTime > endTime
-    ) {
-      Alert.alert("Error", "Waktu mulai tidak boleh lebih dari waktu selesai");
+    } else if (endDate < new Date()) {
+      Alert.alert(
+        "Error",
+        "Waktu selesai tidak boleh kurang dari waktu sekarang"
+      );
+      return;
+    } else if (endDate < startDate) {
+      Alert.alert("Error", "Waktu selesai tidak boleh kurang dari waktu mulai");
       return;
     }
 
@@ -219,26 +236,17 @@ export default function EditEventScreen() {
       const eventData = {
         name: eventTitle,
         description: eventDescription,
-        start_date: new Date(
-          startDate.getFullYear(),
-          startDate.getMonth(),
-          startDate.getDate(),
-          startTime.getHours(),
-          startTime.getMinutes()
-        ).toISOString(),
-        end_date: new Date(
-          endDate.getFullYear(),
-          endDate.getMonth(),
-          endDate.getDate(),
-          endTime.getHours(),
-          endTime.getMinutes()
-        ).toISOString(),
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
         location: {
           name: selectedLocation.name || `${selectedCity}, ${selectedProvince}`,
           latitude: selectedLocation.latitude as number,
           longitude: selectedLocation.longitude as number,
         },
-        image: [image],
+        image:
+          image?.split("/").pop()?.split(".")[0] === event?.image_url?.split("/").pop()?.split(".")[0]
+            ? undefined
+            : [image],
         city_id: selectedCity,
         province_id: selectedProvince,
       };
@@ -293,7 +301,30 @@ export default function EditEventScreen() {
           ].map(
             ({ label, value, setter, placeholder, multiline, height }, i) => (
               <View className="mb-4" key={i}>
-                <Text className="mb-2 text-[#1E1E1E]">{label}</Text>
+                <View className="flex-row items-center justify-between">
+                  <Text className="mb-2 text-[#1E1E1E]">{label}</Text>
+                  {label === "Event Description" && (
+                    <TouchableOpacity
+                      className="rounded-lg px-3 py-2 self-start mb-2 flex-row items-center"
+                      style={{ backgroundColor: Colors.secondary }}
+                      onPress={() => {
+                        // TODO: Implement AI description generation
+                        Alert.alert(
+                          "Coming Soon",
+                          "AI description generation is not yet implemented"
+                        );
+                      }}
+                    >
+                      <Ionicons
+                        name="sparkles"
+                        size={16}
+                        color="white"
+                        className="mr-2"
+                      />
+                      <Text className="text-white text-sm">Generate</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <View
                   className={`bg-white rounded-xl px-4 py-3 ${height || ""}`}
                   style={shadowStyle}
@@ -315,56 +346,63 @@ export default function EditEventScreen() {
           {/* Province Dropdown */}
           <View className="mb-4">
             <Text className="mb-2 text-[#1E1E1E]">Province</Text>
-            <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
-              <Picker
-                selectedValue={selectedProvince}
-                onValueChange={(itemValue) => {
-                  setSelectedProvince(itemValue);
-                  setSelectedCity(""); // Reset kota saat provinsi berubah
-                  setSelectedLocation({}); // Kosongkan lokasi saat provinsi berubah
-                }}
-              >
-                <Picker.Item label="Pilih Provinsi" value="" />
-                {provinces.map((prov) => (
-                  <Picker.Item
-                    key={prov.id}
-                    label={prov.name}
-                    value={prov.id}
-                  />
-                ))}
-              </Picker>
-            </View>
+            <Dropdown
+              style={[styles.dropdown, shadowStyle]}
+              placeholderStyle={styles.placeholderStyle}
+              selectedTextStyle={styles.selectedTextStyle}
+              inputSearchStyle={styles.inputSearchStyle}
+              iconStyle={styles.iconStyle}
+              data={provinces.map((p) => ({ label: p.name, value: p.id }))}
+              search
+              maxHeight={300}
+              labelField="label"
+              valueField="value"
+              placeholder={!provinceIsFocus ? "Pilih Provinsi" : "..."}
+              searchPlaceholder="Cari Provinsi..."
+              value={selectedProvince}
+              onFocus={() => setProvinceIsFocus(true)}
+              onBlur={() => setProvinceIsFocus(false)}
+              onChange={(item) => {
+                setSelectedProvince(item.value);
+                setSelectedCity(""); // Reset kota saat provinsi berubah
+                setSelectedLocation({}); // Kosongkan lokasi saat provinsi berubah
+                setProvinceIsFocus(false);
+              }}
+            />
           </View>
 
           {/* City Dropdown */}
           <View className="mb-4">
             <Text className="mb-2 text-[#1E1E1E]">City</Text>
-            <View className="bg-white rounded-xl px-4 py-3" style={shadowStyle}>
-              <Picker
-                selectedValue={selectedCity}
-                onValueChange={(itemValue) => {
-                  setSelectedCity(itemValue);
-                  setSelectedLocation({}); // Kosongkan lokasi saat city berubah
-                }}
-                enabled={!!selectedProvince}
-              >
-                <Picker.Item
-                  label={
-                    selectedProvince
-                      ? "Pilih Kota"
-                      : "Pilih Provinsi Terlebih Dahulu"
-                  }
-                  value=""
-                />
-                {filteredCities.map((cityItem) => (
-                  <Picker.Item
-                    key={cityItem.id}
-                    label={cityItem.name}
-                    value={cityItem.id}
-                  />
-                ))}
-              </Picker>
-            </View>
+            <Dropdown
+              style={[styles.dropdown, shadowStyle]}
+              placeholderStyle={styles.placeholderStyle}
+              selectedTextStyle={styles.selectedTextStyle}
+              inputSearchStyle={styles.inputSearchStyle}
+              iconStyle={styles.iconStyle}
+              data={filteredCities.map((c) => ({ label: c.name, value: c.id }))}
+              search
+              maxHeight={300}
+              labelField="label"
+              valueField="value"
+              placeholder={
+                !selectedProvince
+                  ? "Silahkan pilih provinsi terlebih dahulu"
+                  : !cityIsFocus
+                    ? "Pilih Kota"
+                    : "..."
+              }
+              searchPlaceholder="Cari Kota..."
+              value={selectedCity}
+              onFocus={() => setCityIsFocus(true)}
+              onBlur={() => setCityIsFocus(false)}
+              onChange={(item) => {
+                setSelectedCity(item.value);
+                setSelectedLocation({}); // Kosongkan lokasi saat city berubah
+                setCityIsFocus(false);
+              }}
+              disable={!selectedProvince}
+            />
           </View>
 
           {/* Location Preview */}
@@ -426,14 +464,14 @@ export default function EditEventScreen() {
           <View className="flex-row justify-between mb-4">
             {[
               {
-                label: "Start Date",
+                label: "Tanggal Mulai",
                 value: startDate,
                 show: showStartDatePicker,
                 setShow: setShowStartDatePicker,
                 setter: setStartDate,
               },
               {
-                label: "End Date",
+                label: "Tanggal Selesai",
                 value: endDate,
                 show: showEndDatePicker,
                 setShow: setShowEndDatePicker,
@@ -448,64 +486,27 @@ export default function EditEventScreen() {
                   style={shadowStyle}
                 >
                   <Text className="text-[#1E1E1E]">
-                    {item.value.toLocaleDateString()}
-                  </Text>
-                </TouchableOpacity>
-                {item.show && (
-                  <DateTimePicker
-                    value={item.value}
-                    mode="date"
-                    display="default"
-                    onChange={(e, date) => {
-                      item.setShow(Platform.OS === "ios");
-                      if (date) item.setter(date);
-                    }}
-                  />
-                )}
-              </View>
-            ))}
-          </View>
-
-          {/* Time */}
-          <View className="flex-row justify-between mb-4">
-            {[
-              {
-                label: "Start Time",
-                value: startTime,
-                show: showStartTimePicker,
-                setShow: setShowStartTimePicker,
-                setter: setStartTime,
-              },
-              {
-                label: "End Time",
-                value: endTime,
-                show: showEndTimePicker,
-                setShow: setShowEndTimePicker,
-                setter: setEndTime,
-              },
-            ].map((item, i) => (
-              <View className="flex-1" key={i}>
-                <Text className="mb-2 text-[#1E1E1E]">{item.label}</Text>
-                <TouchableOpacity
-                  onPress={() => item.setShow(true)}
-                  className="bg-white rounded-xl px-4 py-3 mr-2"
-                  style={shadowStyle}
-                >
-                  <Text className="text-[#1E1E1E]">
-                    {item.value.toLocaleTimeString([], {
+                    {item.value.toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
                       hour: "2-digit",
-                      minute: "2-digit",
+                      minute: "numeric",
                     })}
                   </Text>
                 </TouchableOpacity>
                 {item.show && (
-                  <DateTimePicker
-                    value={item.value}
-                    mode="time"
-                    display="default"
-                    onChange={(e, time) => {
-                      item.setShow(Platform.OS === "ios");
-                      if (time) item.setter(time);
+                  <DatePicker
+                    modal
+                    open={item.show}
+                    date={item.value}
+                    locale="id-ID"
+                    onConfirm={(date) => {
+                      item.setShow(false);
+                      item.setter(date);
+                    }}
+                    onCancel={() => {
+                      item.setShow(false);
                     }}
                   />
                 )}
@@ -547,6 +548,7 @@ export default function EditEventScreen() {
     </SafeAreaView>
   );
 }
+
 const shadowStyle = {
   shadowColor: "#000",
   shadowOffset: { width: 0, height: 2 },
@@ -554,3 +556,44 @@ const shadowStyle = {
   shadowRadius: 2,
   elevation: 2,
 };
+
+const styles = StyleSheet.create({
+  dropdown: {
+    height: 50,
+    borderWidth: 0,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    backgroundColor: "white",
+  },
+  icon: {
+    marginRight: 5,
+  },
+  label: {
+    position: "absolute",
+    backgroundColor: "white",
+    left: 22,
+    top: 8,
+    zIndex: 999,
+    paddingHorizontal: 8,
+    fontSize: 14,
+  },
+  placeholderStyle: {
+    paddingHorizontal: 8,
+    fontSize: 14,
+    color: "gray",
+  },
+  selectedTextStyle: {
+    paddingHorizontal: 8,
+    fontSize: 16,
+    color: Colors.black,
+  },
+  iconStyle: {
+    width: 20,
+    height: 20,
+  },
+  inputSearchStyle: {
+    borderRadius: 8,
+    height: 40,
+    fontSize: 16,
+  },
+});

@@ -28,7 +28,7 @@ export default function TabLayout() {
             tabBarStyle: { display: "none" }, // Hide the default tab bar
           }}
         >
-          <Tabs.Screen name="index" />
+          <Tabs.Screen name="index"  />
           <Tabs.Screen name="place" />
           <Tabs.Screen name="event" />
           <Tabs.Screen name="profile" />

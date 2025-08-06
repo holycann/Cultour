@@ -10,15 +10,27 @@ export class ProvinceService extends BaseApiService {
    * Fetch all provinces
    * @returns Promise resolving to array of provinces
    */
-  static async fetchProvinces(): Promise<Province[]> {
+  static async fetchProvinces(options?: {
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }): Promise<Province[]> {
     try {
-      const response = await this.get<ApiResponse<Province[]>>("/provinces");
-      
+      const response = await this.get<ApiResponse<Province[]>>("/provinces", {
+        params: {
+          limit: options?.limit || 10,
+          offset: options?.offset || 0,
+          sort_by: options?.sortBy || "created_at",
+          sort_order: options?.sortOrder || "desc",
+        },
+      });
+
       // Type guard to ensure we return an array of provinces
       if (isApiResponse<Province[]>(response) && response.data) {
         return response.data;
       }
-      
+
       return [];
     } catch (error) {
       console.error("Failed to fetch provinces:", error);
@@ -32,24 +44,27 @@ export class ProvinceService extends BaseApiService {
    * @param options Optional search options
    */
   static async searchProvinces(
-    query: string, 
-    options?: { 
-      limit?: number 
+    query: string,
+    options?: {
+      limit?: number;
     }
   ): Promise<Province[]> {
     try {
-      const response = await this.get<ApiResponse<Province[]>>("/provinces/search", { 
-        params: { 
-          query, 
-          limit: options?.limit || 5
-        } 
-      });
-      
+      const response = await this.get<ApiResponse<Province[]>>(
+        "/provinces/search",
+        {
+          params: {
+            query,
+            limit: options?.limit || 5,
+          },
+        }
+      );
+
       // Type guard to ensure we return an array of provinces
       if (isApiResponse<Province[]>(response) && response.data) {
         return response.data;
       }
-      
+
       return [];
     } catch (error) {
       console.error("Failed to search provinces:", error);
@@ -78,88 +93,20 @@ export class ProvinceService extends BaseApiService {
   }
 
   /**
-   * Create a new province
-   * @param provinceData Province data to create
-   * @returns Promise resolving to the created province
-   */
-  static async createProvince(provinceData: Partial<Province>): Promise<Province> {
-    try {
-      const response = await this.post<Partial<Province>, Province>('/provinces', provinceData);
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to create province");
-      }
-
-      if (!response.data) {
-        throw new Error("No province data returned");
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error("Failed to create province:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update an existing province
-   * @param provinceId Province's unique identifier
-   * @param provinceData Province data to update
-   * @returns Promise resolving to the updated province
-   */
-  static async updateProvince(
-    provinceId: string, 
-    provinceData: Partial<Province>
-  ): Promise<Province> {
-    try {
-      const response = await this.put<Partial<Province>, Province>(`/provinces/${provinceId}`, provinceData);
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to update province");
-      }
-
-      if (!response.data) {
-        throw new Error("No province data returned");
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error("Failed to update province:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a province
-   * @param provinceId Province's unique identifier
-   * @returns Promise resolving to the deletion result
-   */
-  static async deleteProvince(provinceId: string): Promise<boolean> {
-    try {
-      const response = await this.delete(`/provinces/${provinceId}`);
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to delete province");
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Failed to delete province:", error);
-      throw error;
-    }
-  }
-
-  /**
    * Fetch provinces by region
    * @param regionId Region's unique identifier
    * @returns Promise resolving to array of provinces
    */
   static async fetchProvincesByRegion(regionId: string): Promise<Province[]> {
     try {
-      const response = await this.get<Province[]>(`/regions/${regionId}/provinces`);
-      
+      const response = await this.get<Province[]>(
+        `/regions/${regionId}/provinces`
+      );
+
       if (!response.success) {
-        throw new Error(response.error || "Failed to fetch provinces by region");
+        throw new Error(
+          response.error || "Failed to fetch provinces by region"
+        );
       }
 
       return response.data || [];

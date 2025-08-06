@@ -1,6 +1,5 @@
 import Colors from "@/constants/Colors";
 import { useEvent } from "@/hooks/useEvent";
-import { useUser } from "@/hooks/useUser";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import {
@@ -15,14 +14,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function EventScreen() {
   const { events, fetchEvents, isLoading, error } = useEvent();
-  const { profile } = useUser();
   const router = useRouter();
 
   useEffect(() => {
     if (events.length === 0) {
       fetchEvents();
     }
-  }, []);
+  }, [events, fetchEvents]);
 
   const handleCreateEvent = () => {
     router.push("/event/add");
@@ -30,7 +28,10 @@ export default function EventScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 justify-center items-center bg-white"
+      >
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
@@ -38,7 +39,10 @@ export default function EventScreen() {
 
   if (error) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 justify-center items-center bg-white">
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 justify-center items-center bg-white"
+      >
         <Text className="text-red-500 text-center mt-5">
           {error || "Failed to load events"}
         </Text>
@@ -55,7 +59,7 @@ export default function EventScreen() {
           className="bg-[#EEC887] px-4 py-2 rounded-lg"
           onPress={handleCreateEvent}
         >
-          <Text className="text-[#4E7D79] font-semibold">+ Create Event</Text>
+          <Text className="text-black font-semibold">+ Create Event</Text>
         </TouchableOpacity>
       </View>
 
@@ -71,7 +75,7 @@ export default function EventScreen() {
         {events.map((event) => (
           <View
             key={event.id}
-            className="bg-[#F3DDBF] rounded-2xl mb-5 shadow-md"
+            className="bg-[#F3DDBF] rounded-2xl mb-5 shadow-md px-6 pt-6"
             style={{
               elevation: 5,
               shadowColor: "#000",
@@ -82,7 +86,7 @@ export default function EventScreen() {
           >
             <Image
               source={{ uri: event.image_url || "" }}
-              className="w-full h-52 rounded-t-2xl"
+              className="w-full h-52 rounded-3xl "
               resizeMode="cover"
             />
             <View className="p-4">
@@ -92,10 +96,10 @@ export default function EventScreen() {
 
               <TouchableOpacity
                 onPress={() => router.push(`/event/${event.id}`)}
-                className="bg-[#EEC887] px-5 py-2 rounded-lg self-start"
+                className="bg-[#EEC887] px-6 py-2 rounded-full self-start"
               >
-                <View className="bg-[#EEC887] px-4 py-1 rounded-full mr-2">
-                  <Text className="text-[#1E1E1E] font-bold text-sm">
+                <View className="bg-[#EEC887] rounded-full">
+                  <Text className="text-[#1E1E1E] font-semibold text-sm">
                     See Detail
                   </Text>
                 </View>

@@ -11,7 +11,8 @@ export interface AuthContextType {
   error: string | null;
   login: (credentials: AuthCredentials) => Promise<boolean>;
   register: (registrationData: RegistrationData) => Promise<boolean>;
-  loginWithOAuth: (provider: 'google' | 'apple' | 'github') => Promise<boolean>;
+  loginWithOAuth: (provider: "google") => Promise<string>;
+  exchangeCodeForSession: (code: string) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<boolean>;
   clearError: () => void;

@@ -96,14 +96,14 @@ export function EventProvider({ children }: EventProviderProps) {
    */
   const fetchEvents = useCallback(
     async (filters?: {
-      cityId?: string;
-      provinceId?: string;
-      isKidFriendly?: boolean;
+      city_id?: string;
+      province_id?: string;
+      is_kid_friendly?: boolean;
     }) => {
       dispatch({ type: "EVENT_START" });
 
       try {
-        const response = await EventService.fetchEvents();
+        const response = await EventService.fetchEvents(filters);
 
         dispatch({
           type: "EVENT_SUCCESS",
@@ -129,7 +129,6 @@ export function EventProvider({ children }: EventProviderProps) {
         type: "TRENDING_EVENT_SUCCESS",
         payload: response,
       });
-
     } catch (error) {
       handleError(error, "Gagal mengambil daftar trending event");
     }
@@ -295,8 +294,6 @@ export function EventProvider({ children }: EventProviderProps) {
   };
 
   return (
-    <EventContext.Provider value={value}>
-      {children}
-    </EventContext.Provider>
+    <EventContext.Provider value={value}>{children}</EventContext.Provider>
   );
 }

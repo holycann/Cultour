@@ -2,7 +2,7 @@
  * Error boundary component for handling application errors gracefully
  * Catches JavaScript errors in the component tree and displays a fallback UI
  */
-import { CommonColors } from "@/constants/Colors";
+import Colors from "@/constants/Colors";
 import { AppError, ErrorCode } from "@/types/AppError";
 import { Ionicons } from "@expo/vector-icons";
 import React, { Component, ErrorInfo, ReactNode } from "react";
@@ -96,7 +96,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <Ionicons
               name="alert-circle-outline"
               size={60}
-              color={CommonColors.error}
+              color={Colors.error}
             />
           </View>
 
@@ -124,7 +124,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <Ionicons
               name="refresh-outline"
               size={16}
-              color={CommonColors.white}
+              color={Colors.white}
               className="mr-2"
             />
             <Text className="text-base font-medium text-white">Try Again</Text>

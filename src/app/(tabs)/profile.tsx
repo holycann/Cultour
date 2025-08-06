@@ -18,40 +18,48 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileIndexScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
-  const { profile, isLoading, error } = useUser();
+  const { user, logout, isLoading: userLoading } = useAuth();
+  const { profile, isLoading } = useUser();
 
   useEffect(() => {
     if (!user) {
-      Alert.alert("Error", "Please Login First For Access Your Profile");
-      router.replace("/auth/login")
+      Alert.alert("Error", "Please Login First For Access Your Profile", [
+        {
+          text: "OK",
+          onPress: () => router.replace("/auth/login"),
+        },
+      ]);
     }
-  }, [])
+  }, [user]);
 
   const handleLogout = async () => {
     try {
       await logout();
-      router.replace("/auth/login");
     } catch (err) {
       console.error("Logout failed:", err);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || userLoading) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#F9EFE4] justify-center items-center">
+      <SafeAreaView
+        edges={["top", "left", "right"]}
+        className="flex-1 bg-[#F9EFE4] justify-center items-center"
+      >
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F9EFE4]">
+    <SafeAreaView className="flex-1 bg-[#F9EFE4]" edges={["left", "right"]}>
       <StatusBar backgroundColor="#F9EFE4" barStyle="dark-content" />
 
       {/* Top Header with curve */}
-      <View className="bg-[#EEC887] pt-10 pb-6 rounded-b-3xl items-center">
-        <Text className="text-2xl font-bold text-[#1E1E1E]">Profile</Text>
+      <View className="bg-[#EEC887] pt-10 pb-6 rounded-b-3xl items-center w-full">
+        <Text className="text-xl md:text-2xl font-bold text-[#1E1E1E]">
+          Profile
+        </Text>
       </View>
 
       {/* White content area */}
@@ -83,11 +91,11 @@ export default function ProfileIndexScreen() {
         </View>
 
         {/* Profile Menu List */}
-        <View className="space-y-4 mb-8">
+        <View className="mb-8">
           {/* Edit Profile */}
           <TouchableOpacity
             onPress={() => router.push("/profile/edit")}
-            className="bg-white rounded-xl px-4 py-4 border border-[#E0E0E0] flex-row items-center justify-between"
+            className="bg-white rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between"
           >
             <View className="flex-row items-center">
               <Ionicons name="person-outline" size={22} color="#4E7D79" />
@@ -101,7 +109,7 @@ export default function ProfileIndexScreen() {
           {/* Identity Verification */}
           <TouchableOpacity
             onPress={() => router.push("/profile/verify")}
-            className={`rounded-xl px-4 py-4 border flex-row items-center justify-between ${
+            className={`rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between ${
               profile?.identity_image_url
                 ? "bg-white border-[#E0E0E0]"
                 : "bg-white border-[#FBCACA]"
@@ -139,7 +147,7 @@ export default function ProfileIndexScreen() {
           {/* Badge */}
           <TouchableOpacity
             onPress={() => router.push("/profile/badge")}
-            className="bg-white rounded-xl px-4 py-4 border border-[#E0E0E0] flex-row items-center justify-between"
+            className="bg-white rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between"
           >
             <View className="flex-row items-center">
               <Ionicons name="medal" size={22} color="#4E7D79" />
@@ -151,7 +159,7 @@ export default function ProfileIndexScreen() {
           {/* Logout */}
           <TouchableOpacity
             onPress={handleLogout}
-            className="bg-white rounded-xl px-4 py-4 border border-[#FBCACA] flex-row items-center justify-between"
+            className="bg-white rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between"
           >
             <View className="flex-row items-center">
               <Ionicons name="log-out-outline" size={22} color="#D32F2F" />

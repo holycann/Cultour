@@ -7,10 +7,17 @@ import { createContext } from "react";
 export interface CityContextType {
   cities: City[];
   isLoading: boolean;
-  error: string | null;
-  fetchCities: () => Promise<void>;
+  fetchCities: (options?: {
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+    provinceId?: string;
+  }) => Promise<void>;
+  fetchCityById: (cityId: string) => Promise<City | null>;
   getCityById: (cityId: string) => City | undefined;
   clearError: () => void;
+  error: string | null;
 }
 
 /**

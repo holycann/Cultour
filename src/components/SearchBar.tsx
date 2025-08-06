@@ -105,7 +105,7 @@ export default function SearchBar({
       >
         <Image
           source={require("@/assets/images/logo.png")}
-          className="h-4 w-4"
+          className="h-10 w-10"
           resizeMode="contain"
         />
       </TouchableOpacity>
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingVertical: 20,
     backgroundColor: Colors.white,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -155,29 +155,28 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 100,
     paddingHorizontal: 15,
-    height: 50,
+    height: 40,
     borderWidth: 1,
     borderColor: Colors.secondary,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.black,
   },
   resultsContainer: {
     position: "absolute",
-    top: "100%",
-    left: 0,
-    right: 0,
+    top: 65,
+    left: 15,
+    right: 15,
     maxHeight: 200,
     backgroundColor: "white",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderRadius: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 3,
+    elevation: 4,
     zIndex: 1000, // Ensure results are above other elements
   },
   resultsList: {

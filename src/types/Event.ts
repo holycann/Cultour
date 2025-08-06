@@ -15,6 +15,7 @@ export interface Event {
   image_url?: string;
   image?: (string | null)[];
   user_id?: string;
+  city_id?: string;
 
   // Optional relations
   city?: City; // Avoid circular dependency

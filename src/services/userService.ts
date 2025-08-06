@@ -87,9 +87,7 @@ export class UserService extends BaseApiService {
     try {
       const response = await this.get<UserProfile>(`/profile/me`);
 
-      if (!response.success) {
-        throw new Error(response.error || "Failed to get user profile");
-      }
+      if (!response.success) return null;
 
       return response.data;
     } catch (error) {

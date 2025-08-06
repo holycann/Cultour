@@ -4,24 +4,42 @@ import { useAuth } from "@/hooks/useAuth";
 import { logger } from "@/utils/logger";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loginWithOAuth, exchangeCodeForSession } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const exchangeCode = async () => {
+      const listener = Linking.addEventListener("url", async ({ url }) => {
+        const urlParams = new URL(url).searchParams;
+        const code = urlParams.get("code");
+
+        if (code) {
+          await exchangeCodeForSession(code);
+        }
+      });
+
+      return () => listener.remove();
+    };
+
+    exchangeCode();
+  }, [exchangeCodeForSession]);
 
   const handleLogin = async () => {
     // Validate inputs
@@ -32,11 +50,10 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      logger.log("LoginPage", "Login Attempt", { email });
+      // logger.log("LoginPage", "Login Attempt", { email });
       const result = await login({ email, password });
 
       if (result) {
-        logger.log("LoginPage", "Login Successful");
         router.replace("/(tabs)");
       } else {
         logger.error("LoginPage", "Login Failed", null);
@@ -50,8 +67,26 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const url = await loginWithOAuth("google");
+      if (url) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Login Error", "Failed to initiate Google login");
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Google login failed";
+
+      Alert.alert("Login Error", errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleRegister = () => {
-    logger.log("LoginPage", "Navigate to Register");
     router.push("/auth/register");
   };
 
@@ -139,12 +174,8 @@ export default function LoginPage() {
         />
         <Button
           label="Login with Google"
-          onPress={() => {
-            logger.log("LoginPage", "Google Login Attempt");
-            Alert.alert("Coming Soon", "Google login will be available soon");
-          }}
+          onPress={handleGoogleLogin}
           className="mb-8"
-          variant="secondary"
           disabled={isLoading}
         />
 

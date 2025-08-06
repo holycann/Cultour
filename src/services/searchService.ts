@@ -2,7 +2,6 @@ import { SearchRequest, SearchResult } from "@/types/Search";
 import { BaseApiService } from "./baseApiService";
 import { CityService } from "./cityService";
 import { EventService } from "./eventService";
-import { LocationService } from "./locationService";
 import { ProvinceService } from "./provinceService";
 
 export class SearchService extends BaseApiService {
@@ -20,7 +19,6 @@ export class SearchService extends BaseApiService {
         "event",
         "city",
         "province",
-        "location",
       ];
 
       // Perform searches based on specified types
@@ -63,20 +61,6 @@ export class SearchService extends BaseApiService {
         );
       }
 
-      if (searchTypes.includes("location")) {
-        const locations = await LocationService.searchLocations(request.query, {
-          limit: request.limit || 5,
-        });
-        searchResults.push(
-          ...locations.map((location) => ({
-            type: "location" as const,
-            data: location,
-            relevanceScore: 1,
-          }))
-        );
-      }
-
-      // Sort results by relevance score (descending)
       return searchResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
     } catch (error) {
       console.error("Global search failed:", error);

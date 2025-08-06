@@ -1,9 +1,9 @@
-import { CityContext } from '@/contexts/CityContext';
-import { CityService } from '@/services/cityService';
+import { CityContext, CityContextType } from "@/contexts/CityContext";
+import { CityService } from "@/services/cityService";
 import { parseError } from "@/types/AppError";
-import { City } from '@/types/City';
+import { City } from "@/types/City";
 import { showDialogError } from "@/utils/alert";
-import React, { ReactNode, useCallback, useMemo, useReducer } from 'react';
+import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
 /**
  * City state type for reducer
@@ -22,7 +22,8 @@ type CityAction =
   | { type: "CITY_SUCCESS"; payload: City[] }
   | { type: "CITY_ERROR"; payload: string }
   | { type: "CITY_CLEAR_ERROR" }
-  | { type: "CITY_RESET" };
+  | { type: "CITY_RESET" }
+  | { type: "CITY_UPDATE_SINGLE"; payload: City };
 
 /**
  * Initial city state
@@ -41,7 +42,33 @@ function cityReducer(state: CityState, action: CityAction): CityState {
     case "CITY_START":
       return { ...state, isLoading: true, error: null };
     case "CITY_SUCCESS":
-      return { ...state, isLoading: false, cities: action.payload, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        cities: action.payload,
+        error: null,
+      };
+    case "CITY_UPDATE_SINGLE":
+      const existingCityIndex = state.cities.findIndex(
+        (city) => city.id === action.payload.id
+      );
+      if (existingCityIndex !== -1) {
+        const updatedCities = [...state.cities];
+        updatedCities[existingCityIndex] = action.payload;
+        return {
+          ...state,
+          isLoading: false,
+          cities: updatedCities,
+          error: null,
+        };
+      } else {
+        return {
+          ...state,
+          isLoading: false,
+          cities: [...state.cities, action.payload],
+          error: null,
+        };
+      }
     case "CITY_ERROR":
       return { ...state, isLoading: false, error: action.payload };
     case "CITY_CLEAR_ERROR":
@@ -60,7 +87,6 @@ interface CityProviderProps {
 export function CityProvider({ children }: CityProviderProps) {
   const [state, dispatch] = useReducer(cityReducer, initialState);
 
-
   /**
    * Handle any API errors
    */
@@ -75,28 +101,65 @@ export function CityProvider({ children }: CityProviderProps) {
   /**
    * Fetch all cities
    */
-  const fetchCities = useCallback(async () => {
-    dispatch({ type: "CITY_START" });
+  const fetchCities = useCallback(
+    async (options?: {
+      limit?: number;
+      offset?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+      provinceId?: string;
+    }) => {
+      dispatch({ type: "CITY_START" });
 
-    try {
-      const data = await CityService.fetchCities();
+      try {
+        const data = await CityService.fetchCities(options);
 
-      dispatch({ 
-        type: "CITY_SUCCESS", 
-        payload: data 
-      });
+        dispatch({
+          type: "CITY_SUCCESS",
+          payload: data,
+        });
+      } catch (error) {
+        handleError(error, "Gagal mengambil daftar kota");
+      }
+    },
+    [handleError]
+  );
 
-    } catch (error) {
-      handleError(error, "Gagal mengambil daftar kota");
-    }
-  }, [handleError]);
+  /**
+   * Fetch a city by its ID
+   */
+  const fetchCityById = useCallback(
+    async (cityId: string) => {
+      dispatch({ type: "CITY_START" });
+
+      try {
+        const data = await CityService.getCityById(cityId);
+
+        if (data) {
+          dispatch({
+            type: "CITY_UPDATE_SINGLE",
+            payload: data,
+          });
+        }
+
+        return data;
+      } catch (error) {
+        handleError(error, `Gagal mengambil kota dengan ID ${cityId}`);
+        return null;
+      }
+    },
+    [handleError]
+  );
 
   /**
    * Get city by ID
    */
-  const getCityById = useCallback((cityId: string) => {
-    return state.cities.find(city => city.id === cityId);
-  }, [state.cities]);
+  const getCityById = useCallback(
+    (cityId: string) => {
+      return state.cities.find((city) => city.id === cityId);
+    },
+    [state.cities]
+  );
 
   /**
    * Clear error state
@@ -109,27 +172,25 @@ export function CityProvider({ children }: CityProviderProps) {
    * Context value
    */
   const value = useMemo(
-    () => ({
+    (): CityContextType => ({
       cities: state.cities,
       isLoading: state.isLoading,
-      error: state.error,
       fetchCities,
+      fetchCityById,
       getCityById,
       clearError,
+      error: state.error,
     }),
     [
       state.cities,
       state.isLoading,
-      state.error,
       fetchCities,
+      fetchCityById,
       getCityById,
       clearError,
+      state.error,
     ]
   );
 
-  return (
-    <CityContext.Provider value={value}>
-      {children}
-    </CityContext.Provider>
-  );
-} 
+  return <CityContext.Provider value={value}>{children}</CityContext.Provider>;
+}

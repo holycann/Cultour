@@ -1,7 +1,11 @@
 import { MessageContext } from "@/contexts/MessageContext";
 import { MessageService } from "@/services/messageService";
 import { parseError } from "@/types/AppError";
-import { AiChatContext, AiChatMessage, DiscussionMessage } from "@/types/Message";
+import {
+  AiChatContext,
+  AiChatMessage,
+  DiscussionMessage,
+} from "@/types/Message";
 import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
@@ -20,7 +24,10 @@ interface MessageState {
  */
 type MessageAction =
   | { type: "MESSAGE_START" }
-  | { type: "ADD_EVENT_AI_MESSAGE"; payload: { eventId: string; message: AiChatMessage } }
+  | {
+      type: "ADD_EVENT_AI_MESSAGE";
+      payload: { eventId: string; message: AiChatMessage };
+    }
   | { type: "CLEAR_EVENT_AI_CHAT"; payload: string }
   | { type: "DISCUSSION_MESSAGES_SUCCESS"; payload: DiscussionMessage[] }
   | { type: "ADD_DISCUSSION_MESSAGE"; payload: DiscussionMessage }
@@ -43,14 +50,20 @@ const initialState: MessageState = {
 /**
  * Reducer function for message state management
  */
-function messageReducer(state: MessageState, action: MessageAction): MessageState {
+function messageReducer(
+  state: MessageState,
+  action: MessageAction
+): MessageState {
   switch (action.type) {
     case "MESSAGE_START":
       return { ...state, isLoading: true, error: null };
     case "ADD_EVENT_AI_MESSAGE": {
       const { eventId, message } = action.payload;
-      const existingChat = state.aiChats[eventId] || { event_id: eventId, messages: [] };
-      
+      const existingChat = state.aiChats[eventId] || {
+        event_id: eventId,
+        messages: [],
+      };
+
       return {
         ...state,
         isLoading: false,
@@ -59,43 +72,55 @@ function messageReducer(state: MessageState, action: MessageAction): MessageStat
           [eventId]: {
             ...existingChat,
             messages: [...existingChat.messages, message],
-            last_interaction_at: new Date()
-          }
-        }
+            last_interaction_at: new Date(),
+          },
+        },
       };
     }
     case "CLEAR_EVENT_AI_CHAT": {
-      const { [action.payload]: removedChat, ...remainingChats } = state.aiChats;
+      const { [action.payload]: removedChat, ...remainingChats } =
+        state.aiChats;
       return {
         ...state,
-        aiChats: remainingChats
+        aiChats: remainingChats,
+        isLoading: false,
       };
     }
     case "DISCUSSION_MESSAGES_SUCCESS":
-      return { ...state, isLoading: false, discussionMessages: action.payload, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        discussionMessages: action.payload,
+        error: null,
+      };
     case "ADD_DISCUSSION_MESSAGE":
-      return { 
-        ...state, 
+      return {
+        ...state,
         discussionMessages: [...state.discussionMessages, action.payload],
+        isLoading: false,
       };
     case "UPDATE_DISCUSSION_MESSAGE":
       return {
         ...state,
-        discussionMessages: state.discussionMessages.map(msg => 
+        discussionMessages: state.discussionMessages.map((msg) =>
           msg.id === action.payload.id ? action.payload : msg
-        )
+        ),
+        isLoading: false,
       };
     case "DELETE_DISCUSSION_MESSAGE":
       return {
         ...state,
-        discussionMessages: state.discussionMessages.filter(msg => msg.id !== action.payload)
+        discussionMessages: state.discussionMessages.filter(
+          (msg) => msg.id !== action.payload
+        ),
+        isLoading: false,
       };
     case "MESSAGE_ERROR":
       return { ...state, isLoading: false, error: action.payload };
     case "MESSAGE_CLEAR_ERROR":
-      return { ...state, error: null };
+      return { ...state, error: null, isLoading: false };
     case "MESSAGE_RESET":
-      return initialState;
+      return { ...initialState, isLoading: false };
     default:
       return state;
   }
@@ -132,22 +157,22 @@ export function MessageProvider({ children }: MessageProviderProps) {
           event_id: eventId,
           content: query,
           is_user_message: true,
-          created_at: new Date()
+          created_at: new Date(),
         };
 
         // Dispatch user message first
-        dispatch({ 
-          type: "ADD_EVENT_AI_MESSAGE", 
-          payload: { eventId, message: userMessage } 
+        dispatch({
+          type: "ADD_EVENT_AI_MESSAGE",
+          payload: { eventId, message: userMessage },
         });
 
         // Get AI response
         const aiResponse = await MessageService.askAiAboutEvent(eventId, query);
 
         if (aiResponse) {
-          dispatch({ 
-            type: "ADD_EVENT_AI_MESSAGE", 
-            payload: { eventId, message: aiResponse } 
+          dispatch({
+            type: "ADD_EVENT_AI_MESSAGE",
+            payload: { eventId, message: aiResponse },
           });
 
           return aiResponse;
@@ -165,12 +190,9 @@ export function MessageProvider({ children }: MessageProviderProps) {
   /**
    * Clear AI chat for a specific event
    */
-  const clearEventAiChat = useCallback(
-    (eventId: string) => {
-      dispatch({ type: "CLEAR_EVENT_AI_CHAT", payload: eventId });
-    },
-    []
-  );
+  const clearEventAiChat = useCallback((eventId: string) => {
+    dispatch({ type: "CLEAR_EVENT_AI_CHAT", payload: eventId });
+  }, []);
 
   /**
    * Fetch thread messages
@@ -197,7 +219,14 @@ export function MessageProvider({ children }: MessageProviderProps) {
       dispatch({ type: "MESSAGE_START" });
 
       try {
-        const message = await MessageService.sendDiscussionMessage(threadId, content);
+        const message = await MessageService.sendDiscussionMessage(
+          threadId,
+          content
+        );
+
+        if (message) {
+          message.sender_id = message.user_id;
+        }
 
         if (message) {
           dispatch({ type: "ADD_DISCUSSION_MESSAGE", payload: message });
@@ -221,10 +250,16 @@ export function MessageProvider({ children }: MessageProviderProps) {
       dispatch({ type: "MESSAGE_START" });
 
       try {
-        const updatedMessage = await MessageService.updateDiscussionMessage(messageId, content);
+        const updatedMessage = await MessageService.updateDiscussionMessage(
+          messageId,
+          content
+        );
 
         if (updatedMessage) {
-          dispatch({ type: "UPDATE_DISCUSSION_MESSAGE", payload: updatedMessage });
+          dispatch({
+            type: "UPDATE_DISCUSSION_MESSAGE",
+            payload: updatedMessage,
+          });
           return updatedMessage;
         }
 
@@ -245,7 +280,8 @@ export function MessageProvider({ children }: MessageProviderProps) {
       dispatch({ type: "MESSAGE_START" });
 
       try {
-        const isDeleted = await MessageService.deleteDiscussionMessage(messageId);
+        const isDeleted =
+          await MessageService.deleteDiscussionMessage(messageId);
 
         if (isDeleted) {
           dispatch({ type: "DELETE_DISCUSSION_MESSAGE", payload: messageId });
@@ -271,31 +307,16 @@ export function MessageProvider({ children }: MessageProviderProps) {
   /**
    * Context value
    */
-  const value = useMemo(
-    () => {
-      // Get the current event's AI chat if exists
-      const currentEventId = Object.keys(state.aiChats)[0];
-      const aiChat = currentEventId ? state.aiChats[currentEventId] : undefined;
+  const value = useMemo(() => {
+    // Get the current event's AI chat if exists
+    const currentEventId = Object.keys(state.aiChats)[0];
+    const aiChat = currentEventId ? state.aiChats[currentEventId] : undefined;
 
-      return {
-        aiChat,
-        discussionMessages: state.discussionMessages,
-        isLoading: state.isLoading,
-        error: state.error,
-        askAiAboutEvent,
-        clearEventAiChat,
-        fetchThreadMessages,
-        sendDiscussionMessage,
-        updateDiscussionMessage,
-        deleteDiscussionMessage,
-        clearError,
-      };
-    },
-    [
-      state.aiChats,
-      state.discussionMessages,
-      state.isLoading,
-      state.error,
+    return {
+      aiChat,
+      discussionMessages: state.discussionMessages,
+      isLoading: state.isLoading,
+      error: state.error,
       askAiAboutEvent,
       clearEventAiChat,
       fetchThreadMessages,
@@ -303,12 +324,22 @@ export function MessageProvider({ children }: MessageProviderProps) {
       updateDiscussionMessage,
       deleteDiscussionMessage,
       clearError,
-    ]
-  );
+    };
+  }, [
+    state.aiChats,
+    state.discussionMessages,
+    state.isLoading,
+    state.error,
+    askAiAboutEvent,
+    clearEventAiChat,
+    fetchThreadMessages,
+    sendDiscussionMessage,
+    updateDiscussionMessage,
+    deleteDiscussionMessage,
+    clearError,
+  ]);
 
   return (
-    <MessageContext.Provider value={value}>
-      {children}
-    </MessageContext.Provider>
+    <MessageContext.Provider value={value}>{children}</MessageContext.Provider>
   );
-} 
+}

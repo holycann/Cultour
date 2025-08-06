@@ -1,9 +1,9 @@
-import { ProvinceContext } from '@/contexts/ProvinceContext';
-import { ProvinceService } from '@/services/provinceService';
+import { ProvinceContext } from "@/contexts/ProvinceContext";
+import { ProvinceService } from "@/services/provinceService";
 import { parseError } from "@/types/AppError";
-import { Province } from '@/types/Province';
-import { showDialogError, showDialogSuccess } from "@/utils/alert";
-import React, { ReactNode, useCallback, useMemo, useReducer } from 'react';
+import { Province } from "@/types/Province";
+import { showDialogError } from "@/utils/alert";
+import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
 /**
  * Province state type for reducer
@@ -36,12 +36,20 @@ const initialState: ProvinceState = {
 /**
  * Reducer function for province state management
  */
-function provinceReducer(state: ProvinceState, action: ProvinceAction): ProvinceState {
+function provinceReducer(
+  state: ProvinceState,
+  action: ProvinceAction
+): ProvinceState {
   switch (action.type) {
     case "PROVINCE_START":
       return { ...state, isLoading: true, error: null };
     case "PROVINCE_SUCCESS_PROVINCES":
-      return { ...state, isLoading: false, provinces: action.payload, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        provinces: action.payload,
+        error: null,
+      };
     case "PROVINCE_ERROR":
       return { ...state, isLoading: false, error: action.payload };
     case "PROVINCE_CLEAR_ERROR":
@@ -74,98 +82,38 @@ export function ProvinceProvider({ children }: ProvinceProviderProps) {
   /**
    * Fetch all provinces
    */
-  const fetchProvinces = useCallback(async () => {
-    dispatch({ type: "PROVINCE_START" });
+  const fetchProvinces = useCallback(
+    async (options?: {
+      limit?: number;
+      offset?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+    }) => {
+      dispatch({ type: "PROVINCE_START" });
 
-    try {
-      const data = await ProvinceService.fetchProvinces();
+      try {
+        const data = await ProvinceService.fetchProvinces(options);
 
-      dispatch({ 
-        type: "PROVINCE_SUCCESS_PROVINCES", 
-        payload: data 
-      });
-    } catch (error) {
-      handleError(error, "Gagal mengambil daftar provinsi");
-    }
-  }, [handleError]);
+        dispatch({
+          type: "PROVINCE_SUCCESS_PROVINCES",
+          payload: data,
+        });
+      } catch (error) {
+        handleError(error, "Gagal mengambil daftar provinsi");
+      }
+    },
+    [handleError]
+  );
 
   /**
    * Get province by ID
    */
-  const getProvinceById = useCallback((provinceId: string) => {
-    return state.provinces.find(prov => prov.id === provinceId);
-  }, [state.provinces]);
-
-  /**
-   * Create a new province
-   */
-  const createProvince = useCallback(async (provinceData: Partial<Province>) => {
-    dispatch({ type: "PROVINCE_START" });
-
-    try {
-      const data = await ProvinceService.createProvince(provinceData);
-
-      // Optimistically update local state
-      dispatch((prev: ProvinceState) => ({
-        ...prev,
-        provinces: data ? [...prev.provinces, data] : prev.provinces
-      }));
-      
-      showDialogSuccess("Berhasil", "Provinsi berhasil dibuat");
-      return true;
-    } catch (error) {
-      handleError(error, "Gagal membuat provinsi");
-      return false;
-    }
-  }, [handleError]);
-
-  /**
-   * Update an existing province
-   */
-  const updateProvince = useCallback(async (provinceId: string, provinceData: Partial<Province>) => {
-    dispatch({ type: "PROVINCE_START" });
-
-    try {
-      const data = await ProvinceService.updateProvince(provinceId, provinceData);
-
-      // Optimistically update local state
-      dispatch((prev: ProvinceState) => ({
-        ...prev,
-        provinces: prev.provinces.map(province => 
-          province.id === provinceId ? { ...province, ...data } : province
-        )
-      }));
-      
-      showDialogSuccess("Berhasil", "Provinsi berhasil diperbarui");
-      return true;
-    } catch (error) {
-      handleError(error, "Gagal memperbarui provinsi");
-      return false;
-    }
-  }, [handleError]);
-
-  /**
-   * Delete a province
-   */
-  const deleteProvince = useCallback(async (provinceId: string) => {
-    dispatch({ type: "PROVINCE_START" });
-
-    try {
-      await ProvinceService.deleteProvince(provinceId);
-
-      // Optimistically update local state
-      dispatch((prev: ProvinceState) => ({
-        ...prev,
-        provinces: prev.provinces.filter(province => province.id !== provinceId)
-      }));
-      
-      showDialogSuccess("Berhasil", "Provinsi berhasil dihapus");
-      return true;
-    } catch (error) {
-      handleError(error, "Gagal menghapus provinsi");
-      return false;
-    }
-  }, [handleError]);
+  const getProvinceById = useCallback(
+    (provinceId: string) => {
+      return state.provinces.find((prov) => prov.id === provinceId);
+    },
+    [state.provinces]
+  );
 
   /**
    * Clear error state
@@ -184,9 +132,6 @@ export function ProvinceProvider({ children }: ProvinceProviderProps) {
       error: state.error,
       fetchProvinces,
       getProvinceById,
-      createProvince,
-      updateProvince,
-      deleteProvince,
       clearError,
     }),
     [
@@ -195,9 +140,6 @@ export function ProvinceProvider({ children }: ProvinceProviderProps) {
       state.error,
       fetchProvinces,
       getProvinceById,
-      createProvince,
-      updateProvince,
-      deleteProvince,
       clearError,
     ]
   );
@@ -207,4 +149,4 @@ export function ProvinceProvider({ children }: ProvinceProviderProps) {
       {children}
     </ProvinceContext.Provider>
   );
-} 
+}

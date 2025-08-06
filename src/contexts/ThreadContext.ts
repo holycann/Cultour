@@ -2,24 +2,48 @@ import { Thread, ThreadCreateData, ThreadJoinData, ThreadUpdateData } from '@/ty
 import { createContext } from 'react';
 
 /**
- * Thread context type definition
+ * Thread state interface - read-only data about threads
  */
-export interface ThreadContextType {
+export interface ThreadState {
   threads: Thread[];
   currentThread?: Thread | null;
   isLoading: boolean;
   error: string | null;
   isCurrentUserParticipant: boolean;
+}
 
-  // Thread Methods
+/**
+ * Thread read operations interface
+ */
+export interface ThreadReadOperations {
   getThreadByEventId: (eventId: string, currentUserId?: string) => Promise<Thread | null>;
-  createEventThread: (threadData: ThreadCreateData) => Promise<Thread | null>;
-  joinEventThread: (joinData: ThreadJoinData) => Promise<Thread | null>;
-  updateThread: (threadId: string, threadData: ThreadUpdateData) => Promise<Thread | null>;
   checkCurrentUserParticipation: (thread?: Thread | null, currentUserId?: string) => boolean;
-  
+}
+
+/**
+ * Thread write operations interface
+ */
+export interface ThreadWriteOperations {
+  createEventThread: (threadData: ThreadCreateData) => Promise<boolean>;
+  joinEventThread: (joinData: ThreadJoinData) => Promise<boolean>;
+  updateThread: (threadId: string, threadData: ThreadUpdateData) => Promise<boolean>;
+}
+
+/**
+ * Thread state management interface
+ */
+export interface ThreadStateManagement {
   clearError: () => void;
 }
+
+/**
+ * Complete Thread context type that combines all interfaces
+ */
+export interface ThreadContextType extends 
+  ThreadState, 
+  ThreadReadOperations,
+  ThreadWriteOperations, 
+  ThreadStateManagement {}
 
 /**
  * Create the context with an undefined default value

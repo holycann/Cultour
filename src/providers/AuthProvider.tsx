@@ -1,11 +1,22 @@
 import { supabase } from "@/config/supabase";
-import { AuthContext } from '@/contexts/AuthContext';
-import { AuthService } from '@/services/authService';
+import { AuthContext, AuthContextType } from "@/contexts/AuthContext";
+import { AuthService } from "@/services/authService";
 import { UserService } from "@/services/userService";
-import { AuthCredentials, AuthUser, RegistrationData, UserProfile } from "@/types/User";
+import {
+  AuthCredentials,
+  AuthUser,
+  RegistrationData,
+  UserProfile,
+} from "@/types/User";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import { logger } from "@/utils/logger";
-import React, { ReactNode, useCallback, useEffect, useMemo, useReducer } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+} from "react";
 
 /**
  * Auth state type for reducer
@@ -84,14 +95,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Subscribe to auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        const user = session?.user 
-          ? await AuthService.getCurrentUser() 
+        dispatch({ type: "AUTH_START" });
+        const user = session?.user
+          ? AuthService.mapSupabaseUserToAuthUser(session.user)
           : null;
 
-        dispatch({ 
-          type: "AUTH_SUCCESS", 
-          payload: user
+        dispatch({
+          type: "AUTH_SUCCESS",
+          payload: user,
         });
+
+        if (
+          event === "SIGNED_IN" &&
+          session?.user?.app_metadata?.provider !== "email"
+        ) {
+          await AuthService.setAuthToken(session?.access_token || "");
+
+          const existingUser = await UserService.getUserProfile();
+
+          if (existingUser) return;
+
+          const userProfile = await UserService.createUserProfile({
+            user_id: session?.user?.id,
+            fullname: session?.user?.user_metadata?.name,
+            bio: "",
+            avatar_url: session?.user?.user_metadata?.avatar_url,
+            identity_image_url: "",
+          });
+
+          if (!userProfile) {
+            showDialogError("Error", "Gagal membuat profil pengguna");
+          }
+        }
       }
     );
 
@@ -118,8 +153,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         showDialogSuccess("Success", "Login berhasil!");
         return true;
       } catch (error: unknown) {
-        const errorMessage = 
-          error instanceof Error ? error.message : "Terjadi kesalahan saat login";
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Terjadi kesalahan saat login";
 
         logger.error("Auth", "Error Login", error);
         dispatch({ type: "AUTH_ERROR", payload: errorMessage });
@@ -149,13 +186,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Create user profile after successful registration
           const userProfileData: Partial<UserProfile> = {
             user_id: user.id,
-            fullname: registrationData.fullname || user.email.split('@')[0],
-            bio: '',
-            avatar_url: '',
-            identity_image_url: '',
+            fullname: registrationData.fullname || user.email.split("@")[0],
+            bio: "",
+            avatar_url: "",
+            identity_image_url: "",
           };
 
-          const profileCreated = await UserService.createUserProfile(userProfileData);
+          const profileCreated =
+            await UserService.createUserProfile(userProfileData);
 
           if (!profileCreated) {
             throw new Error("Gagal membuat profil pengguna");
@@ -167,8 +205,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         return false;
       } catch (error: unknown) {
-        const errorMessage = 
-          error instanceof Error ? error.message : "Terjadi kesalahan saat registrasi";
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Terjadi kesalahan saat registrasi";
 
         logger.error("Auth", "Error Register", error);
         dispatch({ type: "AUTH_ERROR", payload: errorMessage });
@@ -183,21 +223,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Login with OAuth provider
    */
   const loginWithOAuth = useCallback(
-    async (provider: 'google' | 'apple' | 'github'): Promise<boolean> => {
+    async (provider: "google"): Promise<string> => {
       dispatch({ type: "AUTH_START" });
 
       try {
-        await AuthService.loginWithOAuth(provider);
-        return true;
+        const url = await AuthService.loginWithOAuth(provider);
+        return url;
       } catch (error: unknown) {
-        const errorMessage = 
-          error instanceof Error 
-            ? error.message 
+        const errorMessage =
+          error instanceof Error
+            ? error.message
             : `Gagal login dengan ${provider}`;
 
         dispatch({ type: "AUTH_ERROR", payload: errorMessage });
         showDialogError("Error", errorMessage);
-        return false;
+        return "";
+      }
+    },
+    []
+  );
+
+  /**
+   * Exchange OAuth code for session
+   */
+  const exchangeCodeForSession = useCallback(
+    async (code: string): Promise<void> => {
+      dispatch({ type: "AUTH_START" });
+
+      try {
+        await AuthService.exchangeCodeForSession(code);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Gagal menukar kode OAuth";
+
+        dispatch({ type: "AUTH_ERROR", payload: errorMessage });
+        showDialogError("Error", errorMessage);
       }
     },
     []
@@ -220,8 +280,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         );
         return true;
       } catch (error: unknown) {
-        const errorMessage = 
-          error instanceof Error ? error.message : "Gagal mengirim email reset password";
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Gagal mengirim email reset password";
 
         dispatch({ type: "AUTH_ERROR", payload: errorMessage });
         showDialogError("Error", errorMessage);
@@ -239,7 +301,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await AuthService.logout();
       dispatch({ type: "AUTH_RESET" });
     } catch (error: unknown) {
-      const errorMessage = 
+      const errorMessage =
         error instanceof Error ? error.message : "Gagal logout";
 
       dispatch({ type: "AUTH_ERROR", payload: errorMessage });
@@ -263,7 +325,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Context value
    */
   const value = useMemo(
-    () => ({
+    (): AuthContextType => ({
       user: state.user,
       isAuthenticated,
       isLoading: state.isLoading,
@@ -271,6 +333,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       login,
       register,
       loginWithOAuth,
+      exchangeCodeForSession,
       logout,
       forgotPassword,
       clearError,
@@ -283,15 +346,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       login,
       register,
       loginWithOAuth,
+      exchangeCodeForSession,
       logout,
       forgotPassword,
       clearError,
     ]
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-} 
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}

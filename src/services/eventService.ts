@@ -10,9 +10,9 @@ export class EventService extends BaseApiService {
    * Fetch events with optional filters
    */
   static async fetchEvents(filters?: {
-    cityId?: string;
-    provinceId?: string;
-    isKidFriendly?: boolean;
+    city_id?: string;
+    province_id?: string;
+    is_kid_friendly?: boolean;
   }): Promise<Event[]> {
     try {
       const response = await this.get<ApiResponse<Event[]>>("/events", {
@@ -40,8 +40,8 @@ export class EventService extends BaseApiService {
     query: string,
     options?: {
       limit?: number;
-      cityId?: string;
-      provinceId?: string;
+      city_id?: string;
+      province_id?: string;
     }
   ): Promise<Event[]> {
     try {
@@ -49,8 +49,8 @@ export class EventService extends BaseApiService {
         params: {
           query,
           limit: options?.limit || 5,
-          cityId: options?.cityId,
-          provinceId: options?.provinceId,
+          city_id: options?.city_id,
+          province_id: options?.province_id,
         },
       });
 
@@ -82,26 +82,6 @@ export class EventService extends BaseApiService {
       return response.data || [];
     } catch (error) {
       console.error("Failed to fetch trending events:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Fetch events by city
-   * @param cityId City's unique identifier
-   * @returns Promise resolving to array of events
-   */
-  static async fetchEventsByCity(cityId: string): Promise<Event[]> {
-    try {
-      const response = await this.get<Event[]>(`/cities/${cityId}/events`);
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch events by city");
-      }
-
-      return response.data || [];
-    } catch (error) {
-      console.error("Failed to fetch events by city:", error);
       throw error;
     }
   }
@@ -195,9 +175,44 @@ export class EventService extends BaseApiService {
     eventData: Partial<Event>
   ): Promise<Event> {
     try {
-      const response = await this.put<Partial<Event>, Event>(
+      const formData = new FormData();
+
+      Object.entries(eventData).forEach(([key, value]) => {
+        if (key === "image" && Array.isArray(value) && value[0]) {
+          // Only support single image for now
+          const image = value[0];
+          if (typeof image === "string") {
+            // Try to guess filename and type
+            const uri = image;
+            const filename = uri.split("/").pop() || "image.jpg";
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : `image`;
+            formData.append("image", {
+              uri,
+              name: filename,
+              type,
+            } as any);
+          } else {
+            // If already a File/Blob
+            formData.append("image", image);
+          }
+        } else if (value !== undefined && value !== null) {
+          if (typeof value === "object" && !Array.isArray(value)) {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value as any);
+          }
+        }
+      });
+
+      const response = await this.put<FormData, Event>(
         `/events/${eventId}`,
-        eventData
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
 
       if (!response.success) {

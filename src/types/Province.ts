@@ -1,3 +1,5 @@
+import { Event } from "./Event";
+
 export interface Province {
   id: string; // uuid
   name: string;
@@ -5,5 +7,5 @@ export interface Province {
   createdAt: Date;
 
   // Optional relations
-  events?: any[]; // Avoid circular dependency
+  events?: Event[];
 }

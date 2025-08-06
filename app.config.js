@@ -8,6 +8,8 @@ export default {
     orientation: "portrait",
     icon: "./src/assets/images/icon.png",
     scheme: "cultour",
+    deepLinking: true,
+    platforms: ["ios", "android", "web"],
     userInterfaceStyle: "automatic",
     splash: {
       image: "./src/assets/images/splash.png",
@@ -39,6 +41,18 @@ export default {
       permissions: [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
+      ],
+      intentFilters: [
+        {
+          action: "VIEW",
+          data: [
+            {
+              scheme: "cultour",
+              host: "*"
+            }
+          ],
+          category: ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     web: {

@@ -86,7 +86,7 @@ export default function IdentityVerificationScreen() {
         Alert.alert("Sukses", "Verifikasi identitas berhasil", [
           {
             text: "OK",
-            onPress: () => router.push("/profile"),
+            onPress: () => router.replace("/profile"),
           },
         ]);
       }

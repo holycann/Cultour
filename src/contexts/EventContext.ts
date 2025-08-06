@@ -11,9 +11,9 @@ export interface EventContextType {
   isLoading: boolean;
   error: string | null;
   fetchEvents: (filters?: {
-    cityId?: string;
-    provinceId?: string;
-    isKidFriendly?: boolean;
+    city_id?: string;
+    province_id?: string;
+    is_kid_friendly?: boolean;
   }) => Promise<void>;
   fetchTrendingEvents: () => Promise<void>;
   createEvent: (eventData: Partial<Event>) => Promise<boolean>;

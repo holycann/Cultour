@@ -20,7 +20,7 @@ import {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, loginWithOAuth } = useAuth();
+  const { register } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullname, setFullname] = useState("");
@@ -65,7 +65,7 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      logger.log("RegisterPage", "Registration Attempt", { email });
+      // logger.log("RegisterPage", "Registration Attempt", { email });
       const result = await register({
         email,
         password,
@@ -73,7 +73,7 @@ export default function RegisterPage() {
       });
 
       if (result) {
-        logger.log("RegisterPage", "Registration Successful");
+        // logger.log("RegisterPage", "Registration Successful");
         showDialogSuccess("Success", "Registration successful!");
         router.replace("/(tabs)");
       }
@@ -89,28 +89,8 @@ export default function RegisterPage() {
   };
 
   const handleLogin = () => {
-    logger.log("RegisterPage", "Navigate to Login");
+    // logger.log("RegisterPage", "Navigate to Login");
     router.push("/auth/login");
-  };
-
-  const handleGoogleSignUp = async () => {
-    logger.log("RegisterPage", "Google Login Attempt");
-    setIsLoading(true);
-    try {
-      const result = await loginWithOAuth('google');
-      if (result) {
-        showDialogSuccess("Success", "Google login successful!");
-        router.replace("/(tabs)");
-      }
-    } catch (error) {
-      const errorMessage = 
-        error instanceof Error ? error.message : "Google login failed";
-      
-      logger.error("RegisterPage", "Google Login Error", error);
-      showDialogError("Login Error", errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -254,20 +234,6 @@ export default function RegisterPage() {
               <ActivityIndicator color="white" />
             ) : (
               <Text className="text-white text-center">Continue</Text>
-            )}
-          </Button>
-        </View>
-        <View className="items-center mb-6">
-          <Button
-            onPress={handleGoogleSignUp}
-            className="w-full max-w-[300px] py-3"
-            variant="secondary"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="black" />
-            ) : (
-              <Text className="text-black text-center">Continue with Google</Text>
             )}
           </Button>
         </View>

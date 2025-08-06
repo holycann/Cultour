@@ -7,6 +7,7 @@ const BaseColors = {
   primary: "#EEC887",
   primary50: "rgba(238, 200, 135, 0.5)",
   secondary: "#477A71",
+  error: "#FF0000",
 };
 
 const Colors = {

@@ -8,7 +8,12 @@ export interface ProvinceContextType {
   provinces: Province[];
   isLoading: boolean;
   error: string | null;
-  fetchProvinces: () => Promise<void>;
+  fetchProvinces: (options?: {
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+  }) => Promise<void>;
   getProvinceById: (provinceId: string) => Province | undefined;
   clearError: () => void;
 }
