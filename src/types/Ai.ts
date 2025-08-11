@@ -1,39 +1,31 @@
-export type AiMessage = {
-  role: "user" | "assistant" | "system";
-  content: string;
-};
+export type Role = "user" | "system";
 
-export type AiResponse = {
-  id: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type AiRequest = {
-  query: string;
-  context?: string;
-};
-
-// New types for chat sessions
-export type AiChatSessionCreateRequest = {
-  event_id: string;
-  user_id: string;
-};
-
-export type AiChatSessionCreateResponse = {
+export type AiSession = {
   session_id: string;
 };
 
-export type AiChatMessageRequest = {
+export type AiSessionCreate = {
+  event_id?: string;
+};
+
+export type AiMessage = {
+  event_id: string;
+  session_id: string;
+  response: string[];
+  is_user_message: boolean;
+};
+
+export type AiMessagePayload = {
+  event_id: string;
   session_id: string;
   message: string;
 };
 
-export type AiChatMessageResponse = {
-  response: string[];
+export type AiEventDescription = {
+  description: string;
 };
 
-export type AiEventDescriptionResponse = {
-  description: string;
+export type AiEventDescriptionPayload = {
+  title: string;
+  additional_context?: string;
 };

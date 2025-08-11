@@ -1,22 +1,19 @@
-import { supabase } from "@/config/supabase";
-import { LocationContext } from '@/contexts/LocationContext';
-import { parseError } from "@/types/AppError";
-import { Location } from '@/types/Location';
+import {
+  LocationContext,
+  LocationContextType,
+} from "@/contexts/LocationContext";
+import { LocationService } from "@/services/locationService";
+import { Pagination, Sorting } from "@/types/ApiResponse";
+import { Location, LocationOptions, LocationPayload } from "@/types/Location";
 import { showDialogError } from "@/utils/alert";
-import React, { ReactNode, useCallback, useMemo, useReducer } from 'react';
+import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
-/**
- * Location state type for reducer
- */
-interface LocationState {
+type LocationState = {
   locations: Location[];
   isLoading: boolean;
   error: string | null;
-}
+};
 
-/**
- * Location action types for reducer
- */
 type LocationAction =
   | { type: "LOCATION_START" }
   | { type: "LOCATION_SUCCESS_LOCATIONS"; payload: Location[] }
@@ -24,24 +21,26 @@ type LocationAction =
   | { type: "LOCATION_CLEAR_ERROR" }
   | { type: "LOCATION_RESET" };
 
-/**
- * Initial location state
- */
 const initialState: LocationState = {
   locations: [],
   isLoading: false,
   error: null,
 };
 
-/**
- * Reducer function for location state management
- */
-function locationReducer(state: LocationState, action: LocationAction): LocationState {
+function locationReducer(
+  state: LocationState,
+  action: LocationAction
+): LocationState {
   switch (action.type) {
     case "LOCATION_START":
       return { ...state, isLoading: true, error: null };
     case "LOCATION_SUCCESS_LOCATIONS":
-      return { ...state, isLoading: false, locations: action.payload, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        locations: action.payload,
+        error: null,
+      };
     case "LOCATION_ERROR":
       return { ...state, isLoading: false, error: action.payload };
     case "LOCATION_CLEAR_ERROR":
@@ -53,89 +52,178 @@ function locationReducer(state: LocationState, action: LocationAction): Location
   }
 }
 
-interface LocationProviderProps {
-  children: ReactNode;
-}
-
-export function LocationProvider({ children }: LocationProviderProps) {
+export function LocationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(locationReducer, initialState);
 
-  /**
-   * Handle any API errors
-   */
   const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const appError = parseError(error);
-    const errorMessage = customMessage || appError.message;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected location error occurred";
 
     dispatch({ type: "LOCATION_ERROR", payload: errorMessage });
-    showDialogError("Error", errorMessage);
+    showDialogError("Location Error", errorMessage);
   }, []);
 
-  /**
-   * Fetch locations, optionally filtered by city
-   */
-  const fetchLocations = useCallback(async (cityId?: string) => {
-    dispatch({ type: "LOCATION_START" });
+  const fetchLocations = useCallback(
+    async (options?: {
+      locationOptions?: LocationOptions;
+      pagination?: Pagination;
+      sorting?: Sorting;
+    }): Promise<Location[] | null> => {
+      dispatch({ type: "LOCATION_START" });
 
-    try {
-      let query = supabase.from('locations').select('*');
-      
-      if (cityId) {
-        query = query.eq('city_id', cityId);
+      try {
+        const response = await LocationService.fetchLocations(
+          options?.locationOptions,
+          options?.pagination,
+          options?.sorting
+        );
+
+        if (response.success && response.data) {
+          dispatch({
+            type: "LOCATION_SUCCESS_LOCATIONS",
+            payload: response.data,
+          });
+          return response.data;
+        }
+
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal mengambil daftar lokasi");
+        return null;
       }
+    },
+    [handleError]
+  );
 
-      const { data, error } = await query;
+  const searchLocations = useCallback(
+    async (
+      query: string,
+      options?: {
+        locationOptions?: LocationOptions;
+        pagination?: Pagination;
+      }
+    ): Promise<Location[] | null> => {
+      dispatch({ type: "LOCATION_START" });
 
-      if (error) throw error;
+      try {
+        const response = await LocationService.searchLocations(
+          query,
+          options?.locationOptions
+        );
 
-      dispatch({ 
-        type: "LOCATION_SUCCESS_LOCATIONS", 
-        payload: data || [] 
-      });
-    } catch (error) {
-      handleError(error, "Gagal mengambil daftar lokasi");
-    }
-  }, [handleError]);
+        if (response.success && response.data) {
+          dispatch({
+            type: "LOCATION_SUCCESS_LOCATIONS",
+            payload: response.data,
+          });
+          return response.data;
+        }
 
-  /**
-   * Get location by ID
-   */
-  const getLocationById = useCallback((locationId: string) => {
-    return state.locations.find(loc => loc.id === locationId);
-  }, [state.locations]);
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal mencari lokasi");
+        return null;
+      }
+    },
+    [handleError]
+  );
 
-  /**
-   * Clear error state
-   */
+  const fetchLocationById = useCallback(
+    async (locationId: string): Promise<Location | null> => {
+      dispatch({ type: "LOCATION_START" });
+
+      try {
+        const data = await LocationService.getLocationById(locationId);
+
+        if (data) {
+          // Optimistically update local state
+          dispatch({
+            type: "LOCATION_SUCCESS_LOCATIONS",
+            payload: state.locations.some((loc) => loc.id === data.id)
+              ? state.locations.map((loc) => (loc.id === data.id ? data : loc))
+              : [...state.locations, data],
+          });
+        }
+
+        return data;
+      } catch (error) {
+        handleError(error, `Gagal mengambil lokasi dengan ID ${locationId}`);
+        return null;
+      }
+    },
+    [handleError, state.locations]
+  );
+
+  const getLocationById = useCallback(
+    (locationId: string): Location | undefined => {
+      return state.locations.find((loc) => loc.id === locationId);
+    },
+    [state.locations]
+  );
+
+  const createLocation = useCallback(
+    async (locationData: LocationPayload): Promise<Location | null> => {
+      dispatch({ type: "LOCATION_START" });
+
+      try {
+        const data = await LocationService.createLocation(locationData);
+
+        if (data) {
+          dispatch({
+            type: "LOCATION_SUCCESS_LOCATIONS",
+            payload: [...state.locations, data],
+          });
+        }
+
+        return data;
+      } catch (error) {
+        handleError(error, "Gagal membuat lokasi");
+        return null;
+      }
+    },
+    [handleError, state.locations]
+  );
+
   const clearError = useCallback(() => {
     dispatch({ type: "LOCATION_CLEAR_ERROR" });
   }, []);
 
-  /**
-   * Context value
-   */
-  const value = useMemo(
+  const resetLocationState = useCallback(() => {
+    dispatch({ type: "LOCATION_RESET" });
+  }, []);
+
+  const contextValue = useMemo<LocationContextType>(
     () => ({
       locations: state.locations,
       isLoading: state.isLoading,
       error: state.error,
       fetchLocations,
+      searchLocations,
+      fetchLocationById,
       getLocationById,
+      createLocation,
       clearError,
+      resetLocationState,
     }),
     [
       state.locations,
       state.isLoading,
       state.error,
       fetchLocations,
+      searchLocations,
+      fetchLocationById,
       getLocationById,
+      createLocation,
       clearError,
+      resetLocationState,
     ]
   );
 
   return (
-    <LocationContext.Provider value={value}>
+    <LocationContext.Provider value={contextValue}>
       {children}
     </LocationContext.Provider>
   );
-} 
+}

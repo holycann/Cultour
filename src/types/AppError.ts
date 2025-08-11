@@ -6,32 +6,22 @@
  * Error codes for application errors
  */
 export enum ErrorCode {
-  // General errors
-  UNKNOWN_ERROR = "UNKNOWN_ERROR",
-  APP_ERROR = "APP_ERROR",
-
-  // API errors
-  API_ERROR = "API_ERROR",
-  NETWORK_ERROR = "NETWORK_ERROR",
-
-  // Authentication errors
-  AUTH_ERROR = "AUTH_ERROR",
-  AUTH_EXPIRED = "AUTH_EXPIRED",
-
-  // Resource errors
-  NOT_FOUND_ERROR = "NOT_FOUND_ERROR",
+  // Standard error types
   VALIDATION_ERROR = "VALIDATION_ERROR",
+  NOT_FOUND = "NOT_FOUND",
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+  AUTH_ERROR = "AUTH_ERROR",
+  AUTHORIZATION_ERROR = "AUTHORIZATION_ERROR",
+  DATABASE_ERROR = "DATABASE_ERROR",
+  NETWORK_ERROR = "NETWORK_ERROR",
+  CONFIG_ERROR = "CONFIG_ERROR",
+  CONFLICT_ERROR = "CONFLICT_ERROR",
+  UNAUTHORIZED_ERROR = "UNAUTHORIZED_ERROR",
+  BAD_REQUEST_ERROR = "BAD_REQUEST_ERROR",
+  TIMEOUT_ERROR = "TIMEOUT_ERROR",
+  CANCELED_ERROR = "CANCELED_ERROR",
   FORBIDDEN_ERROR = "FORBIDDEN_ERROR",
-
-  // Book errors
-  BOOK_FETCH_FAILED = "BOOK_FETCH_FAILED",
-  BOOK_NOT_FOUND = "BOOK_NOT_FOUND",
-  BOOK_BORROW_FAILED = "BOOK_BORROW_FAILED",
-  BOOK_RETURN_FAILED = "BOOK_RETURN_FAILED",
-
-  // Reading errors
-  READING_PROGRESS_ERROR = "READING_PROGRESS_ERROR",
-  READING_COMPLETE_ERROR = "READING_COMPLETE_ERROR",
+  METHOD_NOT_ALLOWED_ERROR = "METHOD_NOT_ALLOWED_ERROR",
 }
 
 /**
@@ -39,9 +29,9 @@ export enum ErrorCode {
  */
 export class AppError extends Error {
   /**
-   * Unique error code
+   * Unique error type
    */
-  code: ErrorCode;
+  type: ErrorCode;
 
   /**
    * Error details
@@ -52,10 +42,10 @@ export class AppError extends Error {
    * Constructor
    * @param params Error parameters
    */
-  constructor(params: { message: string; code?: ErrorCode; details?: any }) {
+  constructor(params: { message: string; type?: ErrorCode; details?: any }) {
     super(params.message);
     this.name = "AppError";
-    this.code = params.code || ErrorCode.APP_ERROR;
+    this.type = params.type || ErrorCode.INTERNAL_ERROR;
     this.details = params.details;
 
     // Ensure the prototype chain is properly maintained
@@ -66,208 +56,9 @@ export class AppError extends Error {
    * Log error to console
    */
   logError(): void {
-    console.error(`[${this.code}] ${this.message}`, this.details || "");
-  }
-}
-
-/**
- * Error thrown when API requests fail
- */
-export class ApiError extends AppError {
-  /**
-   * HTTP status code
-   */
-  status: number;
-
-  /**
-   * Request URL
-   */
-  url: string;
-
-  /**
-   * Request method
-   */
-  method: string;
-
-  /**
-   * Response data
-   */
-  data?: any;
-
-  /**
-   * Constructor
-   * @param message Error message
-   * @param details Error details
-   */
-  constructor(
-    message: string,
-    details: {
-      status: number;
-      url: string;
-      method: string;
-      data?: any;
-    }
-  ) {
-    super({
-      message,
-      code: ErrorCode.API_ERROR,
-      details,
+    console.error(`[${this.type}] ${this.message}`, {
+      details: this.details,
     });
-    this.name = "ApiError";
-    this.status = details.status;
-    this.url = details.url;
-    this.method = details.method;
-    this.data = details.data;
-
-    // Ensure the prototype chain is properly maintained
-    Object.setPrototypeOf(this, ApiError.prototype);
-  }
-}
-
-/**
- * Error thrown when network requests fail
- */
-export class NetworkError extends AppError {
-  /**
-   * Request URL
-   */
-  url?: string;
-
-  /**
-   * Original error
-   */
-  originalError?: Error;
-
-  /**
-   * Request timeout
-   */
-  timeout?: number;
-
-  /**
-   * Constructor
-   * @param message Error message
-   * @param details Error details
-   */
-  constructor(
-    message: string,
-    details?: {
-      url?: string;
-      originalError?: Error;
-      timeout?: number;
-    }
-  ) {
-    super({
-      message,
-      code: ErrorCode.NETWORK_ERROR,
-      details,
-    });
-    this.name = "NetworkError";
-    this.url = details?.url;
-    this.originalError = details?.originalError;
-    this.timeout = details?.timeout;
-
-    // Ensure the prototype chain is properly maintained
-    Object.setPrototypeOf(this, NetworkError.prototype);
-  }
-}
-
-/**
- * Error thrown when validation fails
- */
-export class ValidationError extends AppError {
-  /**
-   * Validation errors
-   */
-  errors: Record<string, string[]>;
-
-  /**
-   * Constructor
-   * @param message Error message
-   * @param errors Validation errors
-   */
-  constructor(message: string, errors: Record<string, string[]>) {
-    super({
-      message,
-      code: ErrorCode.VALIDATION_ERROR,
-      details: { errors },
-    });
-    this.name = "ValidationError";
-    this.errors = errors;
-
-    // Ensure the prototype chain is properly maintained
-    Object.setPrototypeOf(this, ValidationError.prototype);
-  }
-}
-
-/**
- * Error thrown when authentication fails
- */
-export class AuthError extends AppError {
-  /**
-   * Constructor
-   * @param message Error message
-   * @param details Error details
-   */
-  constructor(message: string, details?: any) {
-    super({
-      message,
-      code: ErrorCode.AUTH_ERROR,
-      details,
-    });
-    this.name = "AuthError";
-
-    // Ensure the prototype chain is properly maintained
-    Object.setPrototypeOf(this, AuthError.prototype);
-  }
-}
-
-/**
- * Error thrown when an operation is not authorized
- */
-export class ForbiddenError extends AppError {
-  /**
-   * Constructor
-   * @param message Error message
-   * @param details Error details
-   */
-  constructor(
-    message: string = "You do not have permission to perform this action",
-    details?: any
-  ) {
-    super({
-      message,
-      code: ErrorCode.FORBIDDEN_ERROR,
-      details,
-    });
-    this.name = "ForbiddenError";
-
-    // Ensure the prototype chain is properly maintained
-    Object.setPrototypeOf(this, ForbiddenError.prototype);
-  }
-}
-
-/**
- * Error thrown when a resource is not found
- */
-export class NotFoundError extends AppError {
-  /**
-   * Constructor
-   * @param message Error message
-   * @param details Error details
-   */
-  constructor(
-    message: string = "The requested resource was not found",
-    details?: any
-  ) {
-    super({
-      message,
-      code: ErrorCode.NOT_FOUND_ERROR,
-      details,
-    });
-    this.name = "NotFoundError";
-
-    // Ensure the prototype chain is properly maintained
-    Object.setPrototypeOf(this, NotFoundError.prototype);
   }
 }
 
@@ -284,18 +75,34 @@ export function parseError(error: unknown): AppError {
   if (error instanceof Error) {
     return new AppError({
       message: error.message,
-      code: ErrorCode.UNKNOWN_ERROR,
+      type: ErrorCode.INTERNAL_ERROR,
       details: { originalError: error },
     });
   }
 
   if (typeof error === "string") {
-    return new AppError({ message: error });
+    return new AppError({
+      message: error,
+      type: ErrorCode.INTERNAL_ERROR,
+    });
   }
 
   return new AppError({
     message: "An unknown error occurred",
-    code: ErrorCode.UNKNOWN_ERROR,
+    type: ErrorCode.INTERNAL_ERROR,
     details: { originalError: error },
   });
+}
+
+/**
+ * Check if an error matches a specific error type
+ * @param error Error to check
+ * @param type Error type to match
+ * @returns Whether error matches the type
+ */
+export function isErrorType(error: unknown, type: ErrorCode): boolean {
+  if (error instanceof AppError) {
+    return error.type === type;
+  }
+  return false;
 }

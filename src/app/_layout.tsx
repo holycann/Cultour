@@ -11,6 +11,10 @@ const RootNavigator = memo(function RootNavigator() {
       <StatusBar />
       <Stack>
         <Stack.Screen
+          name="oauth-callback"
+          options={{ headerShown: false, animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
           name="index"
           options={{ headerShown: false, animation: "fade" }}
         />
@@ -55,7 +59,7 @@ const RootNavigator = memo(function RootNavigator() {
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen
-          name="event/[id]/chat/index"
+          name="event/[id]/ai/index"
           options={{ headerShown: false, animation: "slide_from_right" }}
         />
         <Stack.Screen

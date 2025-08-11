@@ -18,15 +18,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function EventDetailScreen() {
   const router = useRouter();
   const { _id: eventID } = useLocalSearchParams<{ _id: string }>();
-  const {
-    event,
-    events,
-    fetchEvents,
-    getEventById,
-    deleteEvent,
-    updateEventViews,
-    isLoading,
-  } = useEvent();
+  const { event, getEventById, deleteEvent, updateEventViews, isLoading } =
+    useEvent();
   const { user } = useAuth();
 
   const [isCreator, setIsCreator] = useState(false);
@@ -35,10 +28,6 @@ export default function EventDetailScreen() {
   useEffect(() => {
     const fetchEventDetails = async () => {
       if (eventID) {
-        if (events.length === 0 || !event || event.id !== eventID) {
-          await fetchEvents();
-        }
-
         if (!isLoading) {
           await getEventById(eventID);
 
@@ -55,7 +44,7 @@ export default function EventDetailScreen() {
   useEffect(() => {
     // Check if the current user is the event creator
     if (event && user) {
-      setIsCreator(event.user_id === user.id);
+      setIsCreator(event.creator?.id === user.id);
     }
   }, [event, user]);
 
@@ -153,7 +142,7 @@ export default function EventDetailScreen() {
                 style={{ marginRight: 6 }}
               />
               <Text className="text-sm text-[#666]">
-                {event.views || 0} Views
+                {event.views?.views || 0} Views
               </Text>
             </View>
 
@@ -162,8 +151,17 @@ export default function EventDetailScreen() {
               <Text className="text-xl font-bold text-[#17232F] mb-2">
                 Description
               </Text>
-              <Text className="text-[#5C6672]">
-                {event.description || "No description available"}
+              <Text className="text-[#5C6672]" style={{ textAlign: "justify" }}>
+                {event.description
+                  ? event.description.split(". ").map((paragraph, index) => (
+                      <Text key={index}>
+                        {paragraph.trim()}
+                        {index < event.description.split(". ").length - 1
+                          ? ".\n\n"
+                          : ""}
+                      </Text>
+                    ))
+                  : "No description available"}
               </Text>
             </View>
 
@@ -198,7 +196,7 @@ export default function EventDetailScreen() {
             <View className="flex-row justify-between mb-10">
               <View className="flex-1 mr-2">
                 <TouchableOpacity
-                  onPress={() => router.push(`/event/${event.id}/chat`)}
+                  onPress={() => router.push(`/event/${event.id}/ai`)}
                   className="bg-[#EEC887] rounded-xl py-3 px-6 items-center"
                 >
                   <Text className="text-[#1E1E1E] font-bold">Ask AI</Text>

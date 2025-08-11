@@ -1,4 +1,9 @@
-import { User, UserProfile } from "@/types/User";
+import {
+  UpdateAvatar,
+  UpdateIdentity,
+  UserProfile,
+  UserProfilePayload,
+} from "@/types/UserProfile";
 import { getFileType } from "@/utils/file";
 import { BaseApiService } from "./baseApiService";
 
@@ -12,16 +17,16 @@ export class UserService extends BaseApiService {
    * @returns Promise resolving to created UserProfile or null
    */
   static async createUserProfile(
-    userProfileData: Partial<UserProfile>
+    userProfileData: UserProfilePayload
   ): Promise<UserProfile | null> {
     try {
-      const response = await this.post<Partial<UserProfile>, UserProfile>(
-        "/profile",
+      const response = await this.post<UserProfilePayload, UserProfile>(
+        "/users/profiles",
         userProfileData
       );
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to create user profile");
+        throw new Error(response.message || "Failed to create user profile");
       }
 
       return response.data;
@@ -32,67 +37,17 @@ export class UserService extends BaseApiService {
   }
 
   /**
-   * Get user by ID
-   * @param userId User's unique identifier
-   * @returns Promise resolving to User or null
-   */
-  static async getUser(userId: string): Promise<User | null> {
-    try {
-      // Gunakan backtick ``
-      const response = await this.get<User>(`/users/${userId}`);
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to get user");
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error("Failed to get user:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update user
-   * @param userId User's unique identifier
-   * @param userData Partial user data to update
-   * @returns Promise resolving to updated User or null
-   */
-  static async updateUser(
-    userId: string,
-    userData: Partial<User>
-  ): Promise<User | null> {
-    try {
-      const response = await this.put<Partial<User>, User>(
-        `/users/${userId}`,
-        userData
-      );
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to update user");
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error("Failed to update user:", error);
-      throw error;
-    }
-  }
-
-  /**
    * Get authenticated user profile
    * @returns Promise resolving to user profile or null
    */
   static async getUserProfile(): Promise<UserProfile | null> {
     try {
-      const response = await this.get<UserProfile>(`/profile/me`);
+      const response = await this.get<UserProfile>(`/users/profiles/me`);
 
-      if (!response.success) return null;
-
-      return response.data;
+      return this.handleApiResponse<UserProfile>(response, false).data;
     } catch (error) {
       console.error("Failed to get user profile:", error);
-      throw error;
+      return null;
     }
   }
 
@@ -103,17 +58,16 @@ export class UserService extends BaseApiService {
    * @returns Promise resolving to updated user profile or null
    */
   static async updateProfile(
-    profileId: string,
-    profileData: UserProfile
-  ): Promise<UserProfile | null> {
+    profileData: UserProfilePayload
+  ): Promise<UserProfilePayload | null> {
     try {
-      const response = await this.put<UserProfile, UserProfile>(
-        `/profile/${profileId}`,
+      const response = await this.put<UserProfilePayload>(
+        `/users/profiles/${profileData.id}`,
         profileData
       );
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to update user profile");
+        throw new Error(response.message || "Failed to update user profile");
       }
 
       return response.data;
@@ -129,26 +83,27 @@ export class UserService extends BaseApiService {
    * @param avatarFile File to upload
    * @returns Promise resolving to avatar URL or null
    */
-  static async uploadAvatar(
-    userProfileID: string,
-    avatarFile: File | { uri: string; type?: string; name?: string }
-  ): Promise<string | null> {
+  static async uploadAvatar(payload: UpdateAvatar): Promise<string | null> {
     try {
       // Create FormData for file upload
       const formData = new FormData();
       // Only support React Native or web File
-      if ("uri" in avatarFile) {
-        formData.append("avatar", {
-          uri: avatarFile.uri,
-          type: getFileType(avatarFile.uri),
-          name: avatarFile.name || "avatar.jpg",
-        } as any);
+      if (payload.image) {
+        if ("uri" in payload.image) {
+          formData.append("avatar", {
+            uri: payload.image.uri,
+            type: getFileType(payload.image.uri),
+            name: payload.image.name || "avatar.jpg",
+          } as any);
+        } else {
+          formData.append("avatar", payload.image);
+        }
       } else {
-        formData.append("avatar", avatarFile);
+        throw new Error("No image provided for avatar upload");
       }
 
-      const response = await this.put<FormData, { avatarUrl: string }>(
-        `/profile/${userProfileID}`,
+      const response = await this.put<FormData, UpdateAvatar>(
+        `/users/profiles/${payload.id}/avatar`,
         formData,
         {
           headers: {
@@ -158,14 +113,14 @@ export class UserService extends BaseApiService {
       );
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to upload avatar");
+        throw new Error(response.message || "Failed to upload avatar");
       }
 
       if (!response.data) {
         throw new Error("No avatar URL returned");
       }
 
-      return response.data.avatarUrl;
+      return response.data.avatar_url as string;
     } catch (error) {
       console.error("Failed to upload avatar:", error);
       throw error;
@@ -178,24 +133,27 @@ export class UserService extends BaseApiService {
    * @param identityFile File to upload (identity image)
    * @returns Promise resolving to identity image URL or null
    */
-  static async verifyIdentity(
-    userProfileID: string,
-    identityFile: File | { uri: string; type?: string; name?: string }
-  ): Promise<string | null> {
+  static async verifyIdentity(payload: UpdateIdentity): Promise<string | null> {
     try {
+      // Create FormData for file upload
       const formData = new FormData();
-      if ("uri" in identityFile) {
-        formData.append("identity_image", {
-          uri: identityFile.uri,
-          type: getFileType(identityFile.uri),
-          name: identityFile.name,
-        } as any);
+      // Only support React Native or web File
+      if (payload.image) {
+        if ("uri" in payload.image) {
+          formData.append("identity_image", {
+            uri: payload.image.uri,
+            type: getFileType(payload.image.uri),
+            name: payload.image.name || "identity.jpg",
+          } as any);
+        } else {
+          formData.append("identity_image", payload.image);
+        }
       } else {
-        formData.append("identity_image", identityFile);
+        throw new Error("No image provided for identity verification");
       }
 
-      const response = await this.put<FormData, { identityImageUrl: string }>(
-        `/profile/${userProfileID}`,
+      const response = await this.put<FormData, UpdateIdentity>(
+        `/users/profiles/${payload.id}/verify`,
         formData,
         {
           headers: {
@@ -205,14 +163,14 @@ export class UserService extends BaseApiService {
       );
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to verify identity");
+        throw new Error(response.message || "Failed to verify identity");
       }
 
       if (!response.data) {
         throw new Error("No identity image URL returned");
       }
 
-      return response.data.identityImageUrl;
+      return response.data.identity_image_url as string;
     } catch (error) {
       console.error("Failed to verify identity:", error);
       throw error;

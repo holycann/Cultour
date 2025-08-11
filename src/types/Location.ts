@@ -1,12 +1,25 @@
+import { City } from "./City";
+
 export interface Location {
-  id?: string; // uuid
+  id: string;
   name: string;
-  city_id?: string;
+  city_id: string;
   latitude: number;
   longitude: number;
-  created_at?: Date;
+  created_at?: string;
+  updated_at?: string;
 
-  // Optional relations
-  city?: any; // Avoid circular dependency
-  events?: any[]; // Avoid circular dependency
+  city: City;
+}
+
+export interface LocationPayload {
+  name: string;
+  city_id: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface LocationOptions {
+  city_id?: string;
+  province_id?: string;
 }

@@ -25,6 +25,7 @@ import React, { useEffect, useState } from "react";
 import { Dropdown } from "react-native-element-dropdown";
 
 import Colors from "@/constants/Colors";
+import { useAi } from "@/hooks/useAi";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AddEventScreen() {
@@ -50,10 +51,12 @@ export default function AddEventScreen() {
   const [isFullScreenMapVisible, setIsFullScreenMapVisible] = useState(false);
   const [provinceIsFocus, setProvinceIsFocus] = useState(false);
   const [cityIsFocus, setCityIsFocus] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const { createEvent } = useEvent();
-  const { provinces, fetchProvinces } = useProvince();
-  const { cities, fetchCities } = useCity();
+  const { fetchProvinces, allProvinces } = useProvince();
+  const { fetchCities, allCities } = useCity();
+  const { generateEventDescription } = useAi();
 
   // Cek status autentikasi dan verifikasi
   useEffect(() => {
@@ -87,22 +90,27 @@ export default function AddEventScreen() {
 
   // Fetch provinces and cities only once when the component first loads
   useEffect(() => {
-    if (provinces.length === 0) {
-      fetchProvinces();
-    }
+    const fetchData = async () => {
+      await fetchProvinces({
+        pagination: { page: 1, per_page: 1000 },
+        listType: "all",
+      });
+      await fetchCities({
+        pagination: { page: 1, per_page: 1000 },
+        listType: "all",
+      });
+    };
 
-    if (cities.length === 0) {
-      fetchCities();
-    }
-  }, [provinces, cities, fetchProvinces, fetchCities]);
+    fetchData();
+  }, []);
 
   // Filter kota berdasarkan provinsi yang dipilih
-  const filteredCities = cities.filter(
+  const filteredCities = allCities.filter(
     (c) => c.province_id === selectedProvince
   );
 
   // Transform provinces to dropdown format
-  const provinceData = provinces.map((prov) => ({
+  const provinceData = allProvinces.map((prov) => ({
     label: prov.name,
     value: prov.id,
   }));
@@ -183,10 +191,12 @@ export default function AddEventScreen() {
           name: selectedLocation.name || `${selectedCity}, ${selectedProvince}`,
           latitude: selectedLocation.latitude as number,
           longitude: selectedLocation.longitude as number,
+          city_id: selectedCity,
         },
         image: [image],
         city_id: selectedCity,
         province_id: selectedProvince,
+        is_kid_friendly: true,
       };
 
       const response = await createEvent(eventData);
@@ -243,15 +253,78 @@ export default function AddEventScreen() {
                   <Text className="mb-2 text-[#1E1E1E]">{label}</Text>
                   {label === "Event Description" && (
                     <TouchableOpacity
+                      onPress={() => {
+                        // Validate required fields for AI description generation
+                        const validations = [
+                          { value: eventTitle, message: "Event Title" },
+                          { value: selectedProvince, message: "Province" },
+                          { value: selectedCity, message: "City" },
+                          {
+                            value:
+                              selectedLocation.latitude &&
+                              selectedLocation.longitude,
+                            message: "Event Location",
+                          },
+                          {
+                            value: startDate && endDate,
+                            message: "Event Dates",
+                          },
+                        ];
+
+                        // Check field that are empty
+                        const emptyFields = validations
+                          .filter((validation) => !validation.value)
+                          .map((validation) => validation.message);
+
+                        if (emptyFields.length > 0) {
+                          Alert.alert(
+                            "Incomplete Information",
+                            `Please fill in the following fields before generating description:\n${emptyFields.join(", ")}`
+                          );
+                          return;
+                        }
+
+                        const generateAiDescription = async () => {
+                          try {
+                            setIsGeneratingDescription(true);
+                            const additionalContext = `Event will be held in ${allCities.find((c) => c.id === selectedCity)?.name || "selected city"}, ${allProvinces.find((p) => p.id === selectedProvince)?.name || "selected province"}. Event dates: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}. Location details: ${selectedLocation.name || "Specific location"}`;
+
+                            const response = await generateEventDescription({
+                              title: eventTitle,
+                              additional_context: additionalContext,
+                            });
+
+                            if (response?.description) {
+                              setEventDescription(response?.description);
+                              Alert.alert(
+                                "Success",
+                                "AI description generated successfully"
+                              );
+                            } else {
+                              Alert.alert(
+                                "Error",
+                                "Failed to generate description"
+                              );
+                            }
+                          } catch (error) {
+                            console.error(
+                              "AI Description Generation Error:",
+                              error
+                            );
+                            Alert.alert(
+                              "Error",
+                              "Failed to generate description"
+                            );
+                          } finally {
+                            setIsGeneratingDescription(false);
+                          }
+                        };
+
+                        generateAiDescription();
+                      }}
                       className="rounded-lg px-3 py-2 self-start mb-2 flex-row items-center"
                       style={{ backgroundColor: Colors.secondary }}
-                      onPress={() => {
-                        // TODO: Implement AI description generation
-                        Alert.alert(
-                          "Coming Soon",
-                          "AI description generation is not yet implemented"
-                        );
-                      }}
+                      disabled={isGeneratingDescription}
                     >
                       <Ionicons
                         name="sparkles"
@@ -259,7 +332,9 @@ export default function AddEventScreen() {
                         color="white"
                         className="mr-2"
                       />
-                      <Text className="text-white text-sm">Generate</Text>
+                      <Text className="text-white text-sm">
+                        {isGeneratingDescription ? "Generating..." : "Generate"}
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -387,7 +462,7 @@ export default function AddEventScreen() {
               }
               initialCity={
                 selectedCity
-                  ? cities.find((city) => city.id === selectedCity)
+                  ? allCities.find((city) => city.id === selectedCity)
                   : undefined
               }
               onLocationSelect={(location) => {

@@ -2,7 +2,6 @@ import { SearchRequest, SearchResult } from "@/types/Search";
 import { BaseApiService } from "./baseApiService";
 import { CityService } from "./cityService";
 import { EventService } from "./eventService";
-import { ProvinceService } from "./provinceService";
 
 export class SearchService extends BaseApiService {
   /**
@@ -15,53 +14,43 @@ export class SearchService extends BaseApiService {
       const searchResults: SearchResult[] = [];
 
       // Default to all types if not specified
-      const searchTypes = request.types || [
-        "event",
-        "city",
-        "province",
-      ];
+      const searchTypes = request.types || ["event", "place"];
 
       // Perform searches based on specified types
       if (searchTypes.includes("event")) {
-        const events = await EventService.searchEvents(request.query, {
-          limit: request.limit || 5,
-        });
-        searchResults.push(
-          ...events.map((event) => ({
-            type: "event" as const,
-            data: event,
-            relevanceScore: 1, // Backend can provide actual relevance if needed
-          }))
+        const events = await EventService.searchEvents(
+          request.query,
+          {},
+          {
+            per_page: 5,
+          }
         );
+
+        if (events?.data) {
+          searchResults.push(
+            ...events.data.map((event) => ({
+              type: "event" as const,
+              data: event,
+            }))
+          );
+        }
       }
 
-      if (searchTypes.includes("city")) {
-        const cities = await CityService.searchCities(request.query, {
-          limit: request.limit || 5,
-        });
-        searchResults.push(
-          ...cities.map((city) => ({
-            type: "city" as const,
-            data: city,
-            relevanceScore: 1,
-          }))
-        );
+      if (searchTypes.includes("place")) {
+        const cities = await CityService.searchCities(request.query, {});
+
+        if (cities?.data) {
+          searchResults.push(
+            ...cities.data.map((city) => ({
+              type: "place" as const,
+              data: city,
+              relevanceScore: 1,
+            }))
+          );
+        }
       }
 
-      if (searchTypes.includes("province")) {
-        const provinces = await ProvinceService.searchProvinces(request.query, {
-          limit: request.limit || 5,
-        });
-        searchResults.push(
-          ...provinces.map((province) => ({
-            type: "province" as const,
-            data: province,
-            relevanceScore: 1,
-          }))
-        );
-      }
-
-      return searchResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      return searchResults;
     } catch (error) {
       console.error("Global search failed:", error);
       return [];

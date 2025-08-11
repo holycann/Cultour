@@ -1,51 +1,42 @@
-import { Thread, ThreadCreateData, ThreadJoinData, ThreadUpdateData } from '@/types/Thread';
-import { createContext } from 'react';
+import {
+  CheckParticipant,
+  Thread,
+  ThreadCreateData,
+  ThreadJoinData
+} from "@/types/Thread";
+import { createContext } from "react";
 
 /**
- * Thread state interface - read-only data about threads
+ * Thread context type definition with enhanced methods and error handling
  */
-export interface ThreadState {
-  threads: Thread[];
-  currentThread?: Thread | null;
+export interface ThreadContextType {
+  thread?: Thread | null;
   isLoading: boolean;
   error: string | null;
   isCurrentUserParticipant: boolean;
-}
 
-/**
- * Thread read operations interface
- */
-export interface ThreadReadOperations {
-  getThreadByEventId: (eventId: string, currentUserId?: string) => Promise<Thread | null>;
-  checkCurrentUserParticipation: (thread?: Thread | null, currentUserId?: string) => boolean;
-}
+  // Thread Read Operations
+  fetchThreadByEventId: (
+    eventId: string,
+    currentUserId: string
+  ) => Promise<Thread | null>;
 
-/**
- * Thread write operations interface
- */
-export interface ThreadWriteOperations {
-  createEventThread: (threadData: ThreadCreateData) => Promise<boolean>;
+  // Thread Write Operations
+  createEventThread: (threadData: ThreadCreateData) => Promise<Thread | null>;
+
   joinEventThread: (joinData: ThreadJoinData) => Promise<boolean>;
-  updateThread: (threadId: string, threadData: ThreadUpdateData) => Promise<boolean>;
-}
 
-/**
- * Thread state management interface
- */
-export interface ThreadStateManagement {
+  // Participation Management
+  checkCurrentUserParticipation: (payload: CheckParticipant) => boolean;
+
+  // State Management Methods
   clearError: () => void;
+  resetThreadState: () => void;
 }
-
-/**
- * Complete Thread context type that combines all interfaces
- */
-export interface ThreadContextType extends 
-  ThreadState, 
-  ThreadReadOperations,
-  ThreadWriteOperations, 
-  ThreadStateManagement {}
 
 /**
  * Create the context with an undefined default value
  */
-export const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
+export const ThreadContext = createContext<ThreadContextType | undefined>(
+  undefined
+);

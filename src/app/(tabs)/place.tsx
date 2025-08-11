@@ -2,12 +2,13 @@ import Colors from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { useCity } from "@/hooks/useCity";
 import { City } from "@/types/City";
-import { MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -16,12 +17,39 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PlaceList() {
-  const { cities, fetchCities, isLoading, error } = useCity();
+  const {
+    cities,
+    fetchCities,
+    isLoading,
+    error,
+    currentPage,
+    hasMoreCities,
+    totalPages,
+  } = useCity();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadCities = async () => {
+    try {
+      setRefreshing(true);
+      await fetchCities({
+        pagination: { 
+          page: currentPage, 
+          per_page: 10 
+        },
+        listType: "default"
+      });
+    } catch (error) {
+      console.error("Failed to fetch cities", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     // Fetch locations if not already loaded
     if (cities.length === 0) {
-      fetchCities();
+      loadCities();
     }
   }, [cities, fetchCities]);
 
@@ -47,12 +75,72 @@ export default function PlaceList() {
     );
   }
 
+  // Pagination handlers for cities
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      fetchCities({
+        pagination: { 
+          page: currentPage - 1, 
+          per_page: 10 
+        },
+        listType: "default"
+      });
+    }
+  };
+
+  const handleNextPage = () => {
+    if (hasMoreCities) {
+      fetchCities({
+        pagination: { 
+          page: currentPage + 1, 
+          per_page: 10 
+        },
+        listType: "default"
+      });
+    }
+  };
+
   return (
     <SafeAreaView edges={["left", "right"]} className="flex-1 bg-white">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24 }}>
-        <Text className="mb-4 text-[#1A1A1A]" style={Typography.styles.title}>
-          Places
-        </Text>
+      <ScrollView 
+        contentContainerStyle={{ paddingHorizontal: 24 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={loadCities}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-[#1A1A1A]" style={Typography.styles.title}>
+            Places
+          </Text>
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              className={`bg-[#F3DDBF] rounded-full p-2 items-center justify-center ${
+                currentPage <= 1 ? "opacity-50" : ""
+              }`}
+              onPress={handlePreviousPage}
+              disabled={currentPage <= 1}
+            >
+              <Ionicons name="arrow-back" size={16} color={Colors.black} />
+            </TouchableOpacity>
+            <Text className="text-[#1A1A1A]">
+              {currentPage} - {totalPages}
+            </Text>
+            <TouchableOpacity
+              className={`bg-[#F3DDBF] rounded-full p-2 items-center justify-center ${
+                !hasMoreCities ? "opacity-50" : ""
+              }`}
+              onPress={handleNextPage}
+              disabled={!hasMoreCities}
+            >
+              <Ionicons name="arrow-forward" size={16} color={Colors.black} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {cities.map((city: City) => (
           <TouchableOpacity

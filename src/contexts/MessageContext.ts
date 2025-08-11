@@ -1,29 +1,45 @@
-import { AiChatContext, AiChatMessage, DiscussionMessage } from '@/types/Message';
-import { createContext } from 'react';
+import { Pagination } from "@/types/ApiResponse";
+import {
+  Message,
+  SendDiscussionMessage,
+  UpdateDiscussionMessage,
+} from "@/types/Message";
+import { createContext } from "react";
 
 /**
- * Message context type definition
+ * Message context type definition with enhanced methods and error handling
  */
 export interface MessageContextType {
-  aiChat?: AiChatContext;
-  discussionMessages: DiscussionMessage[];
+  discussionMessages: Message[];
   isLoading: boolean;
   error: string | null;
 
-  // AI Chat Methods
-  askAiAboutEvent: (eventId: string, query: string) => Promise<AiChatMessage | null>;
-  clearEventAiChat: (eventId: string) => void;
-
   // Discussion Message Methods
-  fetchThreadMessages: (threadId: string) => Promise<void>;
-  sendDiscussionMessage: (threadId: string, content: string) => Promise<DiscussionMessage | null>;
-  updateDiscussionMessage: (messageId: string, content: string) => Promise<DiscussionMessage | null>;
+  fetchThreadMessages: (
+    threadId: string,
+    options?: {
+      pagination?: Pagination;
+    }
+  ) => Promise<Message[] | null>;
+
+  sendDiscussionMessage: (
+    payload: SendDiscussionMessage
+  ) => Promise<Message | null>;
+
+  updateDiscussionMessage: (
+    payload: UpdateDiscussionMessage
+  ) => Promise<Message | null>;
+
   deleteDiscussionMessage: (messageId: string) => Promise<boolean>;
 
+  // State Management Methods
   clearError: () => void;
+  resetMessageState: () => void;
 }
 
 /**
  * Create the context with an undefined default value
  */
-export const MessageContext = createContext<MessageContextType | undefined>(undefined);
+export const MessageContext = createContext<MessageContextType | undefined>(
+  undefined
+);

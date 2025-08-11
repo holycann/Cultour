@@ -1,5 +1,5 @@
-import { ApiResponse, isApiResponse } from "@/types/ApiResponse";
-import { City } from "@/types/City";
+import { ApiResponse, Pagination, Sorting } from "@/types/ApiResponse";
+import { City, CityOptions } from "@/types/City";
 import { BaseApiService } from "./baseApiService";
 
 /**
@@ -10,33 +10,28 @@ export class CityService extends BaseApiService {
    * Fetch cities with optional filtering and pagination
    * @param options Optional filtering and pagination parameters
    */
-  static async fetchCities(options?: {
-    limit?: number;
-    offset?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-    provinceId?: string;
-  }): Promise<City[]> {
+  static async fetchCities(
+    options?: CityOptions,
+    pagination?: Pagination,
+    sort?: Sorting
+  ): Promise<ApiResponse<City[]>> {
     try {
-      const response = await this.get<ApiResponse<City[]>>("/cities", {
+      const response = await this.get<City[]>("/cities", {
         params: {
-          limit: options?.limit || 10,
-          offset: options?.offset || 0,
-          sort_by: options?.sortBy || "created_at",
-          sort_order: options?.sortOrder || "desc",
-          province_id: options?.provinceId,
+          options,
+          ...(pagination ?? BaseApiService.defaultParams.pagination),
+          ...(sort ?? BaseApiService.defaultParams.sorting),
         },
       });
 
-      // Type guard to ensure we return an array of cities
-      if (isApiResponse<City[]>(response) && response.data) {
-        return response.data;
-      }
-
-      return [];
+      return this.handleApiResponse<City[]>(response, false);
     } catch (error) {
       console.error("Failed to fetch cities:", error);
-      return [];
+      return {
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
@@ -47,29 +42,26 @@ export class CityService extends BaseApiService {
    */
   static async searchCities(
     query: string,
-    options?: {
-      limit?: number;
-      provinceId?: string;
-    }
-  ): Promise<City[]> {
+    options?: CityOptions,
+    pagination?: Pagination
+  ): Promise<ApiResponse<City[]>> {
     try {
-      const response = await this.get<ApiResponse<City[]>>("/cities/search", {
+      const response = await this.get<City[]>("/cities/search", {
         params: {
           query,
-          limit: options?.limit || 5,
-          province_id: options?.provinceId,
+          options,
+          pagination,
         },
       });
 
-      // Type guard to ensure we return an array of cities
-      if (isApiResponse<City[]>(response) && response.data) {
-        return response.data;
-      }
-
-      return [];
+      return this.handleApiResponse<City[]>(response, false);
     } catch (error) {
       console.error("Failed to search cities:", error);
-      return [];
+      return {
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
@@ -82,11 +74,7 @@ export class CityService extends BaseApiService {
     try {
       const response = await this.get<City>(`/cities/${cityId}`);
 
-      if (!response.success) {
-        throw new Error(response.error || "Failed to get city by ID");
-      }
-
-      return response.data;
+      return this.handleApiResponse<City>(response, true).data;
     } catch (error) {
       console.error("Failed to get city by ID:", error);
       throw error;

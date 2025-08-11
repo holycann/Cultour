@@ -9,11 +9,12 @@ import { Event } from "@/types/Event";
 import { logger } from "@/utils/logger";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -31,73 +32,37 @@ export default function HomeScreen() {
     isLoading: eventsLoading,
     fetchEvents,
     fetchTrendingEvents,
-    error: eventsError,
   } = useEvent();
 
   const { fetchUserProfile } = useUser();
 
-  const {
-    cities,
-    fetchCities,
-    fetchCityById,
-    getCityById,
-    isLoading: citiesLoading,
-    error: citiesError,
-  } = useCity();
+  const { homePageCities, fetchCities, isLoading: citiesLoading } = useCity();
+
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fetch data on component mount
+  const loadData = async () => {
+    try {
+      setRefreshing(true);
+      if (user) {
+        await fetchUserProfile(user.id);
+      }
+      await fetchEvents();
+      await fetchTrendingEvents();
+      await fetchCities({
+        pagination: { per_page: 5 },
+        listType: "home",
+      });
+    } catch (error) {
+      logger.error("HomeScreen", "Data Fetch Error", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        if (trendingEvents.length === 0) {
-          await fetchEvents();
-          await fetchTrendingEvents();
-        }
-
-        if (cities.length === 0) {
-          await fetchCities({
-            limit: 10,
-          });
-        }
-      } catch (error) {
-        logger.error("HomeScreen", "Data Fetch Error", error);
-      }
-    };
-
-    const fetchProfile = async (userId: string) => {
-      try {
-        await fetchUserProfile(userId);
-      } catch (error) {
-        logger.error("HomeScreen", "User Profile Fetch Error", error);
-      }
-    };
-
     loadData();
-
-    if (user) {
-      fetchProfile(user.id);
-    }
-  }, [
-    user,
-    trendingEvents,
-    cities,
-    fetchUserProfile,
-    fetchEvents,
-    fetchTrendingEvents,
-    fetchCities,
-  ]);
-
-  // Log any errors
-  useEffect(() => {
-    if (eventsError) {
-      logger.error("HomeScreen", "Events Error", eventsError);
-      console.error("Events Error:", eventsError);
-    }
-    if (citiesError) {
-      logger.error("HomeScreen", "Cities Error", citiesError);
-      console.error("Cities Error:", citiesError);
-    }
-  }, [eventsError, citiesError]);
+  }, []);
 
   // Loading state
   if (eventsLoading || citiesLoading) {
@@ -120,8 +85,8 @@ export default function HomeScreen() {
   if (
     !trendingEvents ||
     trendingEvents.length === 0 ||
-    !cities ||
-    cities.length === 0
+    !homePageCities ||
+    homePageCities.length === 0
   ) {
     return (
       <SafeAreaView
@@ -130,7 +95,7 @@ export default function HomeScreen() {
       >
         <Text>No data available</Text>
         <Text>Trending Events: {trendingEvents?.length}</Text>
-        <Text>Cities: {cities?.length}</Text>
+        <Text>Cities: {homePageCities?.length}</Text>
       </SafeAreaView>
     );
   }
@@ -139,6 +104,14 @@ export default function HomeScreen() {
     <ScrollView
       className="flex-1 bg-white"
       contentContainerStyle={{ paddingBottom: 20 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={loadData}
+          colors={[Colors.primary]}
+          tintColor={Colors.primary}
+        />
+      }
     >
       {/* Section: Trending Events */}
       <View className="px-6">
@@ -153,10 +126,6 @@ export default function HomeScreen() {
           keyExtractor={(item: Event) => item.id || ""}
           contentContainerStyle={{ gap: 16 }}
           renderItem={({ item }: { item: Event }) => {
-            const city = getCityById(item.city_id || "");
-            if (!city) {
-              fetchCityById(item.city_id || "");
-            }
             return (
               <TouchableOpacity
                 className="w-72 bg-[#F3DDBF] rounded-2xl p-3"
@@ -176,7 +145,7 @@ export default function HomeScreen() {
                   {item.name}
                 </Text>
                 <Text className="text-sm text-[#1A1A1A] opacity-70">
-                  📍 {city?.name}, {city?.province?.name}
+                  📍 {item.location?.name}
                 </Text>
               </TouchableOpacity>
             );
@@ -186,11 +155,11 @@ export default function HomeScreen() {
 
       {/* Section: Place Recommendation */}
       <View className="px-6 mt-6">
-        <Text className="text-[#1A1A1A] mb-4" style={Typography.styles.title}>
-          Place Recommendation
-        </Text>
+        <View className="flex-row items-center justify-between mb-4">
+          <Text style={Typography.styles.title}>Place Recommendation</Text>
+        </View>
 
-        {cities.map((city: City) => {
+        {homePageCities.map((city: City) => {
           return (
             <View key={city.id} className="flex-row items-center mb-4">
               <Image

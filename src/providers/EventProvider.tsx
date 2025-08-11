@@ -1,24 +1,18 @@
 import { EventContext, EventContextType } from "@/contexts/EventContext";
 import { EventService } from "@/services/eventService";
-import { parseError } from "@/types/AppError";
-import { Event } from "@/types/Event";
+import { Pagination, Sorting } from "@/types/ApiResponse";
+import { Event, EventCreate, EventOptions, EventUpdate } from "@/types/Event";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
-import React, { ReactNode, useCallback, useReducer } from "react";
+import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
-/**
- * Event state type for reducer
- */
-interface EventState {
-  event: Event | null;
-  events: Event[];
+type EventState = {
+  selectedEvent: Event | null;
+  allEvents: Event[];
   trendingEvents: Event[];
   isLoading: boolean;
   error: string | null;
-}
+};
 
-/**
- * Event action types for reducer
- */
 type EventAction =
   | { type: "EVENT_START" }
   | { type: "EVENT_SUCCESS"; payload: Event[] }
@@ -28,20 +22,14 @@ type EventAction =
   | { type: "EVENT_RESET" }
   | { type: "SET_SINGLE_EVENT"; payload: Event | null };
 
-/**
- * Initial event state
- */
 const initialState: EventState = {
-  events: [],
-  event: null,
+  selectedEvent: null,
+  allEvents: [],
   trendingEvents: [],
   isLoading: false,
   error: null,
 };
 
-/**
- * Reducer function for event state management
- */
 function eventReducer(state: EventState, action: EventAction): EventState {
   switch (action.type) {
     case "EVENT_START":
@@ -50,7 +38,7 @@ function eventReducer(state: EventState, action: EventAction): EventState {
       return {
         ...state,
         isLoading: false,
-        events: action.payload,
+        allEvents: action.payload,
         error: null,
       };
     case "TRENDING_EVENT_SUCCESS":
@@ -67,132 +55,215 @@ function eventReducer(state: EventState, action: EventAction): EventState {
     case "EVENT_RESET":
       return initialState;
     case "SET_SINGLE_EVENT":
-      return { ...state, event: action.payload };
+      return { ...state, selectedEvent: action.payload };
     default:
       return state;
   }
 }
 
-interface EventProviderProps {
-  children: ReactNode;
-}
-
-export function EventProvider({ children }: EventProviderProps) {
+export function EventProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(eventReducer, initialState);
 
-  /**
-   * Handle any API errors
-   */
   const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const appError = parseError(error);
-    const errorMessage = customMessage || appError.message;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected event error occurred";
 
     dispatch({ type: "EVENT_ERROR", payload: errorMessage });
-    showDialogError("Error", errorMessage);
+    showDialogError("Event Error", errorMessage);
   }, []);
 
-  /**
-   * Fetch events with optional filters
-   */
   const fetchEvents = useCallback(
-    async (filters?: {
-      city_id?: string;
-      province_id?: string;
-      is_kid_friendly?: boolean;
-    }) => {
+    async (options?: {
+      eventOptions?: EventOptions;
+      pagination?: Pagination;
+      sorting?: Sorting;
+    }): Promise<Event[] | null> => {
       dispatch({ type: "EVENT_START" });
 
       try {
-        const response = await EventService.fetchEvents(filters);
+        const response = await EventService.fetchEvents(
+          options?.eventOptions,
+          options?.pagination,
+          options?.sorting
+        );
 
-        dispatch({
-          type: "EVENT_SUCCESS",
-          payload: response,
-        });
+        if (response.success && response.data) {
+          dispatch({
+            type: "EVENT_SUCCESS",
+            payload: response.data,
+          });
+          return response.data;
+        }
+
+        return null;
       } catch (error) {
         handleError(error, "Gagal mengambil daftar event");
+        return null;
       }
     },
     [handleError]
   );
 
-  /**
-   * Fetch trending events
-   */
-  const fetchTrendingEvents = useCallback(async () => {
-    dispatch({ type: "EVENT_START" });
+  const searchEvents = useCallback(
+    async (
+      query: string,
+      options?: {
+        eventOptions?: EventOptions;
+        pagination?: Pagination;
+      }
+    ): Promise<Event[] | null> => {
+      dispatch({ type: "EVENT_START" });
 
-    try {
-      const response = await EventService.fetchTrendingEvents();
+      try {
+        const response = await EventService.searchEvents(
+          query,
+          options?.eventOptions,
+          options?.pagination
+        );
 
-      dispatch({
-        type: "TRENDING_EVENT_SUCCESS",
-        payload: response,
-      });
-    } catch (error) {
-      handleError(error, "Gagal mengambil daftar trending event");
-    }
-  }, [handleError]);
+        if (response.success && response.data) {
+          dispatch({
+            type: "EVENT_SUCCESS",
+            payload: response.data,
+          });
+          return response.data;
+        }
 
-  /**
-   * Create a new event
-   */
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal mencari event");
+        return null;
+      }
+    },
+    [handleError]
+  );
+
+  const fetchTrendingEvents = useCallback(
+    async (options?: {
+      eventOptions?: EventOptions;
+      pagination?: Pagination;
+      sorting?: Sorting;
+    }): Promise<Event[] | null> => {
+      dispatch({ type: "EVENT_START" });
+
+      try {
+        const response = await EventService.fetchTrendingEvents(
+          options?.eventOptions,
+          options?.pagination,
+          options?.sorting
+        );
+
+        if (response.success && response.data) {
+          dispatch({
+            type: "TRENDING_EVENT_SUCCESS",
+            payload: response.data,
+          });
+          return response.data;
+        }
+
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal mengambil daftar trending event");
+        return null;
+      }
+    },
+    [handleError]
+  );
+
+  const fetchRelatedEvents = useCallback(
+    async (
+      eventId: string,
+      options?: {
+        eventOptions?: EventOptions;
+        pagination?: Pagination;
+      }
+    ): Promise<Event[] | null> => {
+      dispatch({ type: "EVENT_START" });
+
+      try {
+        const response = await EventService.getRelatedEvents(
+          eventId,
+          options?.eventOptions,
+          options?.pagination
+        );
+
+        if (response.success && response.data) {
+          dispatch({
+            type: "EVENT_SUCCESS",
+            payload: response.data,
+          });
+          return response.data;
+        }
+
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal mengambil event terkait");
+        return null;
+      }
+    },
+    [handleError]
+  );
+
   const createEvent = useCallback(
-    async (eventData: Partial<Event>) => {
+    async (eventData: EventCreate): Promise<Event | null> => {
       dispatch({ type: "EVENT_START" });
 
       try {
         const response = await EventService.createEvent(eventData);
 
-        // Optimistically update local state
-        dispatch({
-          type: "EVENT_SUCCESS",
-          payload: response ? [...state.events, response] : state.events,
-        });
+        if (response) {
+          // Optimistically update local state
+          dispatch({
+            type: "EVENT_SUCCESS",
+            payload: [...state.allEvents, response],
+          });
 
-        showDialogSuccess("Berhasil", "Event berhasil dibuat");
-        return true;
+          showDialogSuccess("Berhasil", "Event berhasil dibuat");
+          return response;
+        }
+
+        return null;
       } catch (error) {
         handleError(error, "Gagal membuat event");
-        return false;
+        return null;
       }
     },
-    [handleError, state.events]
+    [handleError, state.allEvents]
   );
 
-  /**
-   * Update an existing event
-   */
   const updateEvent = useCallback(
-    async (eventId: string, eventData: Partial<Event>) => {
+    async (eventData: EventUpdate): Promise<Event | null> => {
       dispatch({ type: "EVENT_START" });
 
       try {
-        const response = await EventService.updateEvent(eventId, eventData);
+        const response = await EventService.updateEvent(eventData);
 
-        // Optimistically update local state
-        dispatch({
-          type: "EVENT_SUCCESS",
-          payload: state.events.map((event) =>
-            event.id === eventId ? { ...event, ...response } : event
-          ),
-        });
+        if (response) {
+          // Optimistically update local state
+          dispatch({
+            type: "EVENT_SUCCESS",
+            payload: state.allEvents.map((event) =>
+              event.id === eventData.id ? { ...event, ...response } : event
+            ),
+          });
 
-        showDialogSuccess("Berhasil", "Event berhasil diperbarui");
-        return true;
+          showDialogSuccess("Berhasil", "Event berhasil diperbarui");
+          return response;
+        }
+
+        return null;
       } catch (error) {
         handleError(error, "Gagal memperbarui event");
-        return false;
+        return null;
       }
     },
-    [handleError, state.events]
+    [handleError, state.allEvents]
   );
 
-  /**
-   * Delete an event
-   */
   const deleteEvent = useCallback(
-    async (eventId: string) => {
+    async (eventId: string): Promise<boolean> => {
       dispatch({ type: "EVENT_START" });
 
       try {
@@ -201,7 +272,7 @@ export function EventProvider({ children }: EventProviderProps) {
         // Optimistically update local state
         dispatch({
           type: "EVENT_SUCCESS",
-          payload: state.events.filter((event) => event.id !== eventId),
+          payload: state.allEvents.filter((event) => event.id !== eventId),
         });
 
         showDialogSuccess("Berhasil", "Event berhasil dihapus");
@@ -211,50 +282,44 @@ export function EventProvider({ children }: EventProviderProps) {
         return false;
       }
     },
-    [handleError, state.events]
+    [handleError, state.allEvents]
   );
 
-  /**
-   * Get event by ID
-   */
   const getEventById = useCallback(
-    async (eventId: string) => {
-      const foundEvent = state.events.find((event) => event.id === eventId);
+    async (eventId: string): Promise<Event | null> => {
+      let foundEvent =
+        state.allEvents.find((event) => event.id === eventId) ?? null;
+
+      if (!foundEvent) {
+        foundEvent = await EventService.getEventById(eventId);
+      }
+
+      const mutableEvent = foundEvent as any;
+      if (mutableEvent && typeof mutableEvent.views === "object") {
+        mutableEvent.views = mutableEvent.views?.views || 0;
+      }
 
       dispatch({
         type: "SET_SINGLE_EVENT",
-        payload: foundEvent || null,
+        payload: (mutableEvent as Event) || null,
       });
-      return foundEvent;
+
+      return (mutableEvent as Event) || null;
     },
-    [state.events]
+    [state.allEvents]
   );
 
-  /**
-   * Get event by name
-   */
   const getEventByName = useCallback(
     async (eventName: string): Promise<Event | null> => {
-      const foundEvent = state.events.find((event) =>
-        event.name.toLowerCase().includes(eventName.toLowerCase())
-      );
-
-      // Update the single event state
-      dispatch({
-        type: "SET_SINGLE_EVENT",
-        payload: foundEvent || null,
-      });
-
-      return foundEvent || null;
+      const foundEvent =
+        state.allEvents.find((event) => event.name === eventName) ?? null;
+      return foundEvent;
     },
-    [state.events]
+    [state.allEvents]
   );
 
-  /**
-   * Update event views
-   */
   const updateEventViews = useCallback(
-    async (eventId: string) => {
+    async (eventId: string): Promise<boolean> => {
       try {
         await EventService.updateEventViews(eventId);
         return true;
@@ -266,34 +331,58 @@ export function EventProvider({ children }: EventProviderProps) {
     [handleError]
   );
 
-  /**
-   * Clear error state
-   */
   const clearError = useCallback(() => {
     dispatch({ type: "EVENT_CLEAR_ERROR" });
   }, []);
 
-  /**
-   * Context value
-   */
-  const value: EventContextType = {
-    events: state.events,
-    event: state.event,
-    trendingEvents: state.trendingEvents,
-    isLoading: state.isLoading,
-    error: state.error,
-    fetchEvents,
-    fetchTrendingEvents,
-    createEvent,
-    updateEvent,
-    deleteEvent,
-    getEventById,
-    getEventByName,
-    updateEventViews,
-    clearError,
-  };
+  const resetEventState = useCallback(() => {
+    dispatch({ type: "EVENT_RESET" });
+  }, []);
+
+  const contextValue = useMemo<EventContextType>(
+    () => ({
+      event: state.selectedEvent,
+      events: state.allEvents,
+      trendingEvents: state.trendingEvents,
+      isLoading: state.isLoading,
+      error: state.error,
+      fetchEvents,
+      searchEvents,
+      fetchTrendingEvents,
+      fetchRelatedEvents,
+      createEvent,
+      updateEvent,
+      deleteEvent,
+      getEventById,
+      getEventByName,
+      updateEventViews,
+      clearError,
+      resetEventState,
+    }),
+    [
+      state.selectedEvent,
+      state.allEvents,
+      state.trendingEvents,
+      state.isLoading,
+      state.error,
+      fetchEvents,
+      searchEvents,
+      fetchTrendingEvents,
+      fetchRelatedEvents,
+      createEvent,
+      updateEvent,
+      deleteEvent,
+      getEventById,
+      getEventByName,
+      updateEventViews,
+      clearError,
+      resetEventState,
+    ]
+  );
 
   return (
-    <EventContext.Provider value={value}>{children}</EventContext.Provider>
+    <EventContext.Provider value={contextValue}>
+      {children}
+    </EventContext.Provider>
   );
 }

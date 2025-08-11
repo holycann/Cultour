@@ -1,52 +1,106 @@
 import { CityContext, CityContextType } from "@/contexts/CityContext";
 import { CityService } from "@/services/cityService";
-import { parseError } from "@/types/AppError";
-import { City } from "@/types/City";
+import { Pagination, Sorting } from "@/types/ApiResponse";
+import { City, CityOptions } from "@/types/City";
 import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
-/**
- * City state type for reducer
- */
-interface CityState {
+type CityState = {
   cities: City[];
+  allCities: City[];
+  homePageCities: City[];
+  recommendedCities: City[];
   isLoading: boolean;
   error: string | null;
-}
-
-/**
- * City action types for reducer
- */
-type CityAction =
-  | { type: "CITY_START" }
-  | { type: "CITY_SUCCESS"; payload: City[] }
-  | { type: "CITY_ERROR"; payload: string }
-  | { type: "CITY_CLEAR_ERROR" }
-  | { type: "CITY_RESET" }
-  | { type: "CITY_UPDATE_SINGLE"; payload: City };
-
-/**
- * Initial city state
- */
-const initialState: CityState = {
-  cities: [],
-  isLoading: false,
-  error: null,
+  pagination?: Pagination;
+  currentPage: number;
 };
 
-/**
- * Reducer function for city state management
- */
+type CityAction =
+  | { type: "CITY_START" }
+  | {
+      type: "CITY_SUCCESS_CITIES";
+      payload: {
+        cities: City[];
+        pagination?: Pagination;
+        listType?: "home" | "recommended" | "default" | "all";
+      };
+    }
+  | {
+      type: "CITY_APPEND_SUCCESS";
+      payload: {
+        cities: City[];
+        pagination?: Pagination;
+        listType?: "home" | "recommended" | "default" | "all";
+      };
+    }
+  | { type: "CITY_ERROR"; payload: string }
+  | { type: "CITY_RESET" }
+  | { type: "CITY_CLEAR_ERROR" }
+  | { type: "CITY_UPDATE_SINGLE"; payload: City }
+  | { type: "CITY_SET_PAGE"; payload: number };
+
+const initialState: CityState = {
+  cities: [],
+  allCities: [],
+  homePageCities: [],
+  recommendedCities: [],
+  isLoading: false,
+  error: null,
+  pagination: undefined,
+  currentPage: 1,
+};
+
 function cityReducer(state: CityState, action: CityAction): CityState {
   switch (action.type) {
     case "CITY_START":
       return { ...state, isLoading: true, error: null };
-    case "CITY_SUCCESS":
+    case "CITY_SUCCESS_CITIES":
+      const { listType = "default" } = action.payload;
       return {
         ...state,
         isLoading: false,
-        cities: action.payload,
+        ...(listType === "home"
+          ? { homePageCities: action.payload.cities }
+          : listType === "recommended"
+            ? { recommendedCities: action.payload.cities }
+            : listType === "all"
+              ? { allCities: action.payload.cities }
+              : { cities: action.payload.cities }),
+        pagination: action.payload.pagination,
+        currentPage: action.payload.pagination?.page || state.currentPage,
         error: null,
+      };
+    case "CITY_APPEND_SUCCESS":
+      const { listType: appendListType = "default" } = action.payload;
+      return {
+        ...state,
+        isLoading: false,
+        ...(appendListType === "home"
+          ? {
+              homePageCities: [
+                ...state.homePageCities,
+                ...action.payload.cities,
+              ],
+            }
+          : appendListType === "recommended"
+            ? {
+                recommendedCities: [
+                  ...state.recommendedCities,
+                  ...action.payload.cities,
+                ],
+              }
+            : appendListType === "all"
+              ? { allCities: [...state.allCities, ...action.payload.cities] }
+              : { cities: [...state.cities, ...action.payload.cities] }),
+        pagination: action.payload.pagination,
+        currentPage: action.payload.pagination?.page || state.currentPage,
+        error: null,
+      };
+    case "CITY_SET_PAGE":
+      return {
+        ...state,
+        currentPage: action.payload,
       };
     case "CITY_UPDATE_SINGLE":
       const existingCityIndex = state.cities.findIndex(
@@ -80,56 +134,101 @@ function cityReducer(state: CityState, action: CityAction): CityState {
   }
 }
 
-interface CityProviderProps {
-  children: ReactNode;
-}
-
-export function CityProvider({ children }: CityProviderProps) {
+export function CityProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(cityReducer, initialState);
 
-  /**
-   * Handle any API errors
-   */
   const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const appError = parseError(error);
-    const errorMessage = customMessage || appError.message;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected city error occurred";
 
     dispatch({ type: "CITY_ERROR", payload: errorMessage });
-    showDialogError("Error", errorMessage);
+    showDialogError("City Error", errorMessage);
   }, []);
 
-  /**
-   * Fetch all cities
-   */
   const fetchCities = useCallback(
     async (options?: {
-      limit?: number;
-      offset?: number;
-      sortBy?: string;
-      sortOrder?: "asc" | "desc";
-      provinceId?: string;
-    }) => {
+      cityOptions?: CityOptions;
+      pagination?: Pagination;
+      sorting?: Sorting;
+      listType?: "home" | "recommended" | "default" | "all";
+    }): Promise<City[] | null> => {
       dispatch({ type: "CITY_START" });
 
       try {
-        const data = await CityService.fetchCities(options);
+        const response = await CityService.fetchCities(
+          options?.cityOptions,
+          options?.pagination,
+          options?.sorting
+        );
 
-        dispatch({
-          type: "CITY_SUCCESS",
-          payload: data,
-        });
+        if (response.success && response.data) {
+          dispatch({
+            type: "CITY_SUCCESS_CITIES",
+            payload: {
+              cities: response.data,
+              pagination: response.pagination,
+              listType: options?.listType,
+            },
+          });
+          return response.data;
+        }
+
+        return null;
       } catch (error) {
         handleError(error, "Gagal mengambil daftar kota");
+        return null;
       }
     },
     [handleError]
   );
 
-  /**
-   * Fetch a city by its ID
-   */
+  const searchCities = useCallback(
+    async (
+      query: string,
+      options?: {
+        cityOptions?: CityOptions;
+        pagination?: Pagination;
+        sorting?: Sorting;
+        append?: boolean;
+        listType?: "home" | "recommended" | "default" | "all";
+      }
+    ): Promise<City[] | null> => {
+      dispatch({ type: "CITY_START" });
+
+      try {
+        const response = await CityService.searchCities(
+          query,
+          options?.cityOptions,
+          options?.pagination
+        );
+
+        if (response.success && response.data) {
+          dispatch({
+            type: options?.append
+              ? "CITY_APPEND_SUCCESS"
+              : "CITY_SUCCESS_CITIES",
+            payload: {
+              cities: response.data,
+              pagination: response.pagination,
+              listType: options?.listType,
+            },
+          });
+          return response.data;
+        }
+
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal mencari kota");
+        return null;
+      }
+    },
+    [handleError]
+  );
+
   const fetchCityById = useCallback(
-    async (cityId: string) => {
+    async (cityId: string): Promise<City | null> => {
       dispatch({ type: "CITY_START" });
 
       try {
@@ -151,46 +250,70 @@ export function CityProvider({ children }: CityProviderProps) {
     [handleError]
   );
 
-  /**
-   * Get city by ID
-   */
   const getCityById = useCallback(
-    (cityId: string) => {
+    (cityId: string): City | undefined => {
       return state.cities.find((city) => city.id === cityId);
     },
     [state.cities]
   );
 
-  /**
-   * Clear error state
-   */
   const clearError = useCallback(() => {
     dispatch({ type: "CITY_CLEAR_ERROR" });
   }, []);
 
-  /**
-   * Context value
-   */
-  const value = useMemo(
-    (): CityContextType => ({
+  const resetCityState = useCallback(() => {
+    dispatch({ type: "CITY_RESET" });
+  }, []);
+
+  const contextValue = useMemo<CityContextType>(
+    () => ({
       cities: state.cities,
+      allCities: state.allCities,
+      homePageCities: state.homePageCities,
+      recommendedCities: state.recommendedCities,
       isLoading: state.isLoading,
+      error: state.error,
+      pagination: state.pagination,
+      currentPage: state.currentPage,
+      totalPages:
+        state.pagination?.total_pages ||
+        (state.pagination?.total && state.pagination.per_page
+          ? Math.max(
+              1,
+              Math.ceil(state.pagination.total / state.pagination.per_page)
+            )
+          : 1),
+      hasMoreCities:
+        state.pagination?.has_next_page ||
+        (state.pagination?.total_pages
+          ? state.currentPage < state.pagination.total_pages
+          : (state.pagination?.total || 0) > (state.cities.length || 0)),
       fetchCities,
+      searchCities,
       fetchCityById,
       getCityById,
       clearError,
-      error: state.error,
+      resetCityState,
     }),
     [
       state.cities,
+      state.allCities,
+      state.homePageCities,
+      state.recommendedCities,
       state.isLoading,
+      state.error,
+      state.pagination,
+      state.currentPage,
       fetchCities,
+      searchCities,
       fetchCityById,
       getCityById,
       clearError,
-      state.error,
+      resetCityState,
     ]
   );
 
-  return <CityContext.Provider value={value}>{children}</CityContext.Provider>;
+  return (
+    <CityContext.Provider value={contextValue}>{children}</CityContext.Provider>
+  );
 }

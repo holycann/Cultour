@@ -3,11 +3,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  RefreshControl,
   ScrollView,
   StatusBar,
   Text,
@@ -19,7 +20,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function ProfileIndexScreen() {
   const router = useRouter();
   const { user, logout, isLoading: userLoading } = useAuth();
-  const { profile, isLoading } = useUser();
+  const { profile, fetchUserProfile, isLoading } = useUser();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadProfile = async () => {
+    try {
+      setRefreshing(true);
+      if (user) {
+        await fetchUserProfile(user.id);
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -29,6 +45,8 @@ export default function ProfileIndexScreen() {
           onPress: () => router.replace("/auth/login"),
         },
       ]);
+    } else {
+      loadProfile();
     }
   }, [user]);
 
@@ -68,6 +86,14 @@ export default function ProfileIndexScreen() {
           flexGrow: 1,
         }}
         className="bg-white rounded-t-3xl -mt-4 px-6 pt-6"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={loadProfile}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
       >
         {/* Avatar & Name */}
         <View className="items-center mb-6">

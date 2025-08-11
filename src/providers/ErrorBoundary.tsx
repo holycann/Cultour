@@ -80,11 +80,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Format the error
       let errorMessage = "An unexpected error occurred";
-      let errorCode = ErrorCode.UNKNOWN_ERROR;
+      let errorCode = ErrorCode.INTERNAL_ERROR;
 
       if (this.state.error instanceof AppError) {
         errorMessage = this.state.error.message;
-        errorCode = this.state.error.code;
+        errorCode = this.state.error.details;
       } else if (this.state.error) {
         errorMessage = this.state.error.message || errorMessage;
       }

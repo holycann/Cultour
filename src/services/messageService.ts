@@ -1,37 +1,31 @@
-import { AiChatMessage, DiscussionMessage } from "@/types/Message";
+import { ApiResponse } from "@/types/ApiResponse";
+import {
+  Message,
+  SendDiscussionMessage,
+  UpdateDiscussionMessage,
+} from "@/types/Message";
 import { BaseApiService } from "./baseApiService";
 
-/**
- * Message service for managing message-related API operations
- */
 export class MessageService extends BaseApiService {
   /**
-   * Ask AI about a specific event
-   * @param eventId Event's unique identifier
-   * @param query User's query about the event
-   * @returns Promise resolving to AI chat message or null
+   * List messages (requires auth)
    */
-  static async askAiAboutEvent(
-    eventId: string,
-    query: string
-  ): Promise<AiChatMessage | null> {
+  static async fetchMessagesByThread(
+    threadID: string
+  ): Promise<ApiResponse<Message[]>> {
     try {
-      const response = await this.post<
-        { event_id: string; query: string },
-        AiChatMessage
-      >(`/ask/event/${eventId}`, {
-        event_id: eventId,
-        query: query,
-      });
+      const response = await this.get<Message[]>(
+        `/messages/thread/${threadID}`
+      );
 
-      if (!response.success) {
-        throw new Error(response.error || "Failed to get AI response");
-      }
-
-      return response.data;
+      return this.handleApiResponse<Message[]>(response, false);
     } catch (error) {
-      console.error("Failed to ask AI about event:", error);
-      throw error;
+      console.error("Failed to list messages:", error);
+      return {
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
@@ -42,22 +36,26 @@ export class MessageService extends BaseApiService {
    * @returns Promise resolving to discussion message or null
    */
   static async sendDiscussionMessage(
-    threadId: string,
-    content: string
-  ): Promise<DiscussionMessage | null> {
+    payload: SendDiscussionMessage
+  ): Promise<Message | null> {
     try {
-      const response = await this.post<
-        { thread_id: string; content: string },
-        DiscussionMessage
-      >("/messages", { thread_id: threadId, content });
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to send discussion message");
+      // Validate input
+      if (!payload.thread_id || !payload.content.trim()) {
+        console.error("Invalid message parameters");
+        return null;
       }
 
-      return response.data;
+      const response = await this.post<SendDiscussionMessage, Message>(
+        `/messages`,
+        {
+          thread_id: payload.thread_id,
+          content: payload.content.trim(),
+        }
+      );
+
+      return this.handleApiResponse<Message>(response, true).data;
     } catch (error) {
-      console.error("Failed to send discussion message:", error);
+      console.error("Error sending discussion message:", error);
       throw error;
     }
   }
@@ -69,20 +67,14 @@ export class MessageService extends BaseApiService {
    * @returns Promise resolving to updated discussion message or null
    */
   static async updateDiscussionMessage(
-    messageId: string,
-    content: string
-  ): Promise<DiscussionMessage | null> {
+    payload: UpdateDiscussionMessage
+  ): Promise<Message | null> {
     try {
-      const response = await this.put<
-        { content: string },
-        DiscussionMessage
-      >(`/messages/${messageId}`, { content });
+      const response = await this.put<UpdateDiscussionMessage, Message>(
+        `/messages/${payload.id}`
+      );
 
-      if (!response.success) {
-        throw new Error(response.error || "Failed to update discussion message");
-      }
-
-      return response.data;
+      return this.handleApiResponse<Message>(response, true).data;
     } catch (error) {
       console.error("Failed to update discussion message:", error);
       throw error;
@@ -94,46 +86,19 @@ export class MessageService extends BaseApiService {
    * @param messageId Message identifier
    * @returns Promise resolving to boolean indicating success
    */
-  static async deleteDiscussionMessage(
-    messageId: string
-  ): Promise<boolean> {
+  static async deleteDiscussionMessage(messageId: string): Promise<boolean> {
     try {
       const response = await this.delete<void>(`/messages/${messageId}`);
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to delete discussion message");
+        throw new Error(
+          response.message || "Failed to delete discussion message"
+        );
       }
 
       return true;
     } catch (error) {
       console.error("Failed to delete discussion message:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Fetch messages for a specific thread
-   * @param threadId Thread identifier
-   * @returns Promise resolving to list of discussion messages
-   */
-  static async fetchThreadMessages(
-    threadId: string
-  ): Promise<DiscussionMessage[]> {
-    try {
-      const response = await this.get<(DiscussionMessage & { user_id: string })[]>(
-        `/messages/thread/${threadId}`
-      );
-
-      if (!response.success) {
-        throw new Error(response.error || "Failed to fetch thread messages");
-      }
-
-      return (response.data || []).map(message => ({
-        ...message,
-        sender_id: message.user_id
-      }));
-    } catch (error) {
-      console.error("Failed to fetch thread messages:", error);
       throw error;
     }
   }

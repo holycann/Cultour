@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -29,6 +29,16 @@ export default function EventScreen() {
     fetchEventsByCity();
   }, []);
 
+  const filteredEvents = useMemo(() => {
+    const id = typeof cityId === "string" ? cityId : Array.isArray(cityId) ? cityId[0] : "";
+    if (!id) return events;
+
+    return events.filter((event) => {
+      const eventCityId = event.city_id || event.location?.city_id;
+      return eventCityId === id;
+    });
+  }, [events, cityId]);
+
   const handleEventDetail = (eventId: string) => {
     router.push(`/event/${eventId}`);
   };
@@ -55,7 +65,7 @@ export default function EventScreen() {
         <View className="flex-1 justify-center items-center bg-white rounded-t-3xl pt-8 px-6">
           <ActivityIndicator size="large" color="#4E7D79" />
         </View>
-      ) : events.length === 0 ? (
+      ) : filteredEvents.length === 0 ? (
         <View className="flex-1 justify-center items-center bg-white rounded-t-3xl pt-8 px-6">
           <Text className="text-lg text-gray-500">No events in this city</Text>
         </View>
@@ -67,7 +77,7 @@ export default function EventScreen() {
               paddingBottom: 32,
             }}
           >
-            {events.map((event) => (
+            {filteredEvents.map((event) => (
               <TouchableOpacity
                 key={event.id}
                 onPress={() => handleEventDetail(event.id)}

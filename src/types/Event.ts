@@ -1,25 +1,50 @@
-import { City } from "./City";
-import { Location } from "./Location";
-import { Province } from "./Province";
+import { Location, LocationPayload } from "./Location";
 import { User } from "./User";
 
 export interface Event {
   id: string;
-  created_at: Date;
   name: string;
-  description?: string;
-  start_date?: string;
-  end_date?: string;
-  is_kid_friendly?: boolean;
-  views?: number;
-  image_url?: string;
-  image?: (string | null)[];
-  user_id?: string;
-  city_id?: string;
+  description: string;
+  image_url: string;
+  start_date: string; // ISO date-time
+  end_date: string; // ISO date-time
+  is_kid_friendly: boolean;
+  views?: { views: number };
+  created_at?: string;
+  updated_at?: string;
 
-  // Optional relations
-  city?: City; // Avoid circular dependency
-  province?: Province; // Avoid circular dependency
-  location?: Location; // Avoid circular dependency
-  user?: User; // Avoid circular dependency
+  location: Location;
+  creator: User;
+}
+
+export interface EventCreate {
+  name: string;
+  description: string;
+  start_date: string; // ISO date-time
+  end_date: string; // ISO date-time
+  is_kid_friendly: boolean;
+  image: (string | null)[];
+
+  location?: LocationPayload;
+}
+
+export interface EventUpdate {
+  id: string;
+  location_id: string;
+  name: string;
+  description: string;
+  start_date: string; // ISO date-time
+  end_date: string; // ISO date-time
+  image_url: string;
+  is_kid_friendly: boolean;
+  image: (string | null)[];
+
+  Location: LocationPayload;
+}
+
+export interface EventOptions {
+  location_id?: string;
+  city_id?: string;
+  province_id?: string;
+  is_kid_friendly?: boolean;
 }

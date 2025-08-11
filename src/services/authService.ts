@@ -1,5 +1,5 @@
 import { supabase } from "@/config/supabase";
-import { AuthCredentials, AuthUser, RegistrationData } from "@/types/User";
+import { AuthCredentials, RegistrationData, User } from "@/types/User";
 import { validateEmail, validatePassword } from "@/utils/validation";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -12,27 +12,24 @@ export class AuthService {
    * @param credentials User login credentials
    * @returns Promise resolving to authenticated user or null
    */
-  static async login({
-    email,
-    password,
-  }: AuthCredentials): Promise<AuthUser | null> {
+  static async login(value: AuthCredentials): Promise<User | null> {
     // Validate inputs
-    if (!email || !password) {
+    if (!value) {
       throw new Error("Mohon isi semua field");
     }
 
-    if (!validateEmail(email)) {
+    if (!validateEmail(value.email)) {
       throw new Error("Format email tidak valid");
     }
 
-    if (!validatePassword(password)) {
+    if (!validatePassword(value.password)) {
       throw new Error("Password minimal 6 karakter");
     }
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: value.email,
+        password: value.password,
       });
 
       if (error) {
@@ -60,27 +57,32 @@ export class AuthService {
    * @param registrationData User registration details
    * @returns Promise resolving to authenticated user or null
    */
-  static async register({
-    email,
-    password,
-  }: RegistrationData): Promise<AuthUser | null> {
+  static async register(value: RegistrationData): Promise<User | null> {
     // Validate inputs
-    if (!email || !password) {
+    if (!value) {
       throw new Error("Mohon isi semua field");
     }
 
-    if (!validateEmail(email)) {
+    if (!validateEmail(value.email)) {
       throw new Error("Format email tidak valid");
     }
 
-    if (!validatePassword(password)) {
+    if (!validatePassword(value.password)) {
       throw new Error("Password minimal 6 karakter");
+    }
+
+    if (value.phone) {
+      if (!validatePassword(value.phone)) {
+        throw new Error(
+          "Format nomor telepon tidak sesuai. Gunakan format +62, 62, atau 0 diikuti 8-11 digit angka"
+        );
+      }
     }
 
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: value.email,
+        password: value.password,
       });
 
       if (error) {
@@ -149,49 +151,9 @@ export class AuthService {
    */
   static async exchangeCodeForSession(code: string): Promise<void> {
     try {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-      if (error) {
-        throw new Error(error.message || "Gagal menukar kode OAuth");
-      }
+      await supabase.auth.exchangeCodeForSession(code);
     } catch (error) {
-      throw new Error(
-        error instanceof Error ? error.message : "Gagal menukar kode OAuth"
-      );
-    }
-  }
-
-  /**
-   * Send password reset email
-   * @param email User's email address
-   * @returns Promise resolving to boolean indicating success
-   */
-  static async forgotPassword(email: string): Promise<boolean> {
-    if (!email) {
-      throw new Error("Mohon isi email");
-    }
-
-    if (!validateEmail(email)) {
-      throw new Error("Format email tidak valid");
-    }
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "cultour://reset-password", // Custom deep link
-      });
-
-      if (error) {
-        throw new Error(error.message || "Gagal mengirim email reset password");
-      }
-
-      return true;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Gagal mengirim email reset password";
-
-      throw new Error(errorMessage);
+      console.error("Failed to exchange code for session:", error);
     }
   }
 
@@ -218,38 +180,19 @@ export class AuthService {
    */
   static async getAuthToken(): Promise<string | null> {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      let token = (await AsyncStorage.getItem("userToken")) || undefined;
 
-      return session?.access_token || null;
+      if (!token) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        token = session?.access_token;
+      }
+
+      return token || null;
     } catch (error) {
       console.error("Failed to get auth token:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get current authenticated user with token
-   * @returns Promise resolving to authenticated user with token or null
-   */
-  static async getCurrentUser(): Promise<
-    (AuthUser & { token?: string }) | null
-  > {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const { data } = await supabase.auth.getUser();
-
-      if (!data.user) return null;
-
-      const authUser = this.mapSupabaseUserToAuthUser(data.user);
-
-      return {
-        ...authUser,
-        token: sessionData.session?.access_token,
-      };
-    } catch (error) {
-      console.error("Failed to get current user:", error);
       return null;
     }
   }
@@ -270,17 +213,39 @@ export class AuthService {
   }
 
   /**
+   * Get current authenticated user with token
+   * @returns Promise resolving to authenticated user with token or null
+   */
+  static async getCurrentUser(): Promise<(User & { token?: string }) | null> {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getUser();
+
+      if (!data.user) return null;
+
+      const authUser = this.mapSupabaseUserToAuthUser(data.user);
+
+      return {
+        ...authUser,
+        token: sessionData.session?.access_token,
+      };
+    } catch (error) {
+      console.error("Failed to get current user:", error);
+      return null;
+    }
+  }
+
+  /**
    * Map Supabase user to AuthUser type
    * @param user Supabase user object
    * @returns Mapped AuthUser
    */
-  static mapSupabaseUserToAuthUser(user: any): AuthUser {
+  static mapSupabaseUserToAuthUser(user: any): User {
     return {
       id: user.id,
       email: user.email,
+      phone: user.phone,
       role: user.role,
-      fullname: user.user_metadata?.fullname,
-      avatar_url: user.user_metadata?.avatar_url,
     };
   }
 }

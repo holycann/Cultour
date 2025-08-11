@@ -2,12 +2,8 @@ import { supabase } from "@/config/supabase";
 import { AuthContext, AuthContextType } from "@/contexts/AuthContext";
 import { AuthService } from "@/services/authService";
 import { UserService } from "@/services/userService";
-import {
-  AuthCredentials,
-  AuthUser,
-  RegistrationData,
-  UserProfile,
-} from "@/types/User";
+import { AuthCredentials, RegistrationData, User } from "@/types/User";
+import { UserProfilePayload } from "@/types/UserProfile";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import { logger } from "@/utils/logger";
 import React, {
@@ -22,7 +18,8 @@ import React, {
  * Auth state type for reducer
  */
 interface AuthState {
-  user: AuthUser | null;
+  user: User | null;
+  token: string | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -32,16 +29,18 @@ interface AuthState {
  */
 type AuthAction =
   | { type: "AUTH_START" }
-  | { type: "AUTH_SUCCESS"; payload: AuthUser | null }
+  | { type: "AUTH_SUCCESS"; payload: { user: User; token?: string } }
   | { type: "AUTH_ERROR"; payload: string }
   | { type: "AUTH_RESET" }
-  | { type: "CLEAR_ERROR" };
+  | { type: "CLEAR_ERROR" }
+  | { type: "SET_TOKEN"; payload: string | null };
 
 /**
  * Initial auth state
  */
 const initialState: AuthState = {
   user: null,
+  token: null,
   isLoading: true,
   error: null,
 };
@@ -54,13 +53,21 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
     case "AUTH_START":
       return { ...state, isLoading: true, error: null };
     case "AUTH_SUCCESS":
-      return { ...state, isLoading: false, user: action.payload, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        user: action.payload.user,
+        token: action.payload.token || null,
+        error: null,
+      };
     case "AUTH_ERROR":
       return { ...state, isLoading: false, error: action.payload };
     case "AUTH_RESET":
-      return { ...state, user: null, error: null };
+      return { ...initialState, isLoading: false };
     case "CLEAR_ERROR":
       return { ...state, error: null };
+    case "SET_TOKEN":
+      return { ...state, token: action.payload };
     default:
       return state;
   }
@@ -80,13 +87,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const checkAuthStatus = async () => {
       try {
         const currentUser = await AuthService.getCurrentUser();
-        dispatch({
-          type: "AUTH_SUCCESS",
-          payload: currentUser,
-        });
+        if (currentUser) {
+          dispatch({
+            type: "AUTH_SUCCESS",
+            payload: {
+              user: currentUser,
+              token: currentUser.token,
+            },
+          });
+        } else {
+          dispatch({ type: "AUTH_RESET" });
+        }
       } catch (error) {
-        console.error("Auth status check error:", error);
-        dispatch({ type: "AUTH_SUCCESS", payload: null });
+        logger.error("Check Auth Status", "Auth status check error:", error);
+        dispatch({ type: "AUTH_RESET" });
       }
     };
 
@@ -100,32 +114,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
           ? AuthService.mapSupabaseUserToAuthUser(session.user)
           : null;
 
-        dispatch({
-          type: "AUTH_SUCCESS",
-          payload: user,
-        });
+        let token = await AuthService.getAuthToken();
+        if (session?.access_token && session?.access_token !== token) {
+          await setAuthToken(session?.access_token);
+        }
 
-        if (
-          event === "SIGNED_IN" &&
-          session?.user?.app_metadata?.provider !== "email"
-        ) {
-          await AuthService.setAuthToken(session?.access_token || "");
-
-          const existingUser = await UserService.getUserProfile();
-
-          if (existingUser) return;
-
-          const userProfile = await UserService.createUserProfile({
-            user_id: session?.user?.id,
-            fullname: session?.user?.user_metadata?.name,
-            bio: "",
-            avatar_url: session?.user?.user_metadata?.avatar_url,
-            identity_image_url: "",
+        if (user) {
+          dispatch({
+            type: "AUTH_SUCCESS",
+            payload: {
+              user,
+              token: session?.access_token,
+            },
           });
 
-          if (!userProfile) {
-            showDialogError("Error", "Gagal membuat profil pengguna");
+          if (
+            event === "SIGNED_IN" &&
+            session?.user?.app_metadata?.provider !== "email"
+          ) {
+            await AuthService.setAuthToken(session?.access_token || "");
+
+            const existingUser = await UserService.getUserProfile();
+
+            if (existingUser) return;
+
+            const userProfileData: UserProfilePayload = {
+              id: session?.user?.id || "",
+              fullname: session?.user?.user_metadata?.name || "",
+              bio: null,
+              avatar_url: session?.user?.user_metadata?.avatar_url || null,
+            };
+
+            const profileCreated =
+              await UserService.createUserProfile(userProfileData);
+
+            if (!profileCreated) {
+              showDialogError("Error", "Gagal membuat profil pengguna");
+            }
           }
+        } else {
+          dispatch({ type: "AUTH_RESET" });
         }
       }
     );
@@ -146,12 +174,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const user = await AuthService.login(credentials);
 
-        dispatch({
-          type: "AUTH_SUCCESS",
-          payload: user,
-        });
-        showDialogSuccess("Success", "Login berhasil!");
-        return true;
+        if (user) {
+          dispatch({
+            type: "AUTH_SUCCESS",
+            payload: { user },
+          });
+          showDialogSuccess("Success", "Login berhasil!");
+          return true;
+        }
+        return false;
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error
@@ -180,16 +211,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (user) {
           dispatch({
             type: "AUTH_SUCCESS",
-            payload: user,
+            payload: { user },
           });
 
           // Create user profile after successful registration
-          const userProfileData: Partial<UserProfile> = {
-            user_id: user.id,
+          const userProfileData: UserProfilePayload = {
+            id: user.id,
             fullname: registrationData.fullname || user.email.split("@")[0],
-            bio: "",
-            avatar_url: "",
-            identity_image_url: "",
+            bio: null,
+            avatar_url: null,
           };
 
           const profileCreated =
@@ -264,36 +294,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   /**
-   * Send password reset email
-   */
-  const forgotPassword = useCallback(
-    async (email: string): Promise<boolean> => {
-      dispatch({ type: "AUTH_START" });
-
-      try {
-        await AuthService.forgotPassword(email);
-
-        dispatch({ type: "AUTH_SUCCESS", payload: null });
-        showDialogSuccess(
-          "Email Terkirim",
-          "Instruksi reset password telah dikirim ke email Anda"
-        );
-        return true;
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "Gagal mengirim email reset password";
-
-        dispatch({ type: "AUTH_ERROR", payload: errorMessage });
-        showDialogError("Error", errorMessage);
-        return false;
-      }
-    },
-    []
-  );
-
-  /**
    * Logout user
    */
   const logout = useCallback(async (): Promise<void> => {
@@ -310,10 +310,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
+   * Get current authentication token
+   */
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const token = await AuthService.getAuthToken();
+      dispatch({ type: "SET_TOKEN", payload: token });
+      return token;
+    } catch (error) {
+      logger.error("Auth Provider", "Failed to get auth token", error);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Set authentication token
+   */
+  const setAuthToken = useCallback(async (token: string): Promise<boolean> => {
+    try {
+      const result = await AuthService.setAuthToken(token);
+      if (result) {
+        dispatch({ type: "SET_TOKEN", payload: token });
+      }
+      return result;
+    } catch (error) {
+      logger.error("Auth Provider", "Failed to set auth token", error);
+      return false;
+    }
+  }, []);
+
+  /**
    * Clear error state
    */
   const clearError = useCallback(() => {
     dispatch({ type: "CLEAR_ERROR" });
+  }, []);
+
+  /**
+   * Reset auth state
+   */
+  const resetAuthState = useCallback(() => {
+    dispatch({ type: "AUTH_RESET" });
   }, []);
 
   /**
@@ -327,6 +364,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value = useMemo(
     (): AuthContextType => ({
       user: state.user,
+      token: state.token,
       isAuthenticated,
       isLoading: state.isLoading,
       error: state.error,
@@ -335,11 +373,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       loginWithOAuth,
       exchangeCodeForSession,
       logout,
-      forgotPassword,
+      getAuthToken,
+      setAuthToken,
       clearError,
+      resetAuthState,
     }),
     [
       state.user,
+      state.token,
       state.isLoading,
       state.error,
       isAuthenticated,
@@ -348,8 +389,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       loginWithOAuth,
       exchangeCodeForSession,
       logout,
-      forgotPassword,
+      getAuthToken,
+      setAuthToken,
       clearError,
+      resetAuthState,
     ]
   );
 

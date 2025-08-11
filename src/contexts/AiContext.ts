@@ -1,48 +1,46 @@
 import { createContext } from "react";
 import {
-  AiChatMessageRequest,
-  AiChatMessageResponse,
-  AiChatSessionCreateRequest,
-  AiChatSessionCreateResponse,
-  AiEventDescriptionResponse,
+  AiEventDescription,
+  AiEventDescriptionPayload,
   AiMessage,
-  AiResponse,
+  AiMessagePayload,
+  AiSession,
+  AiSessionCreate,
 } from "../types/Ai";
 
-type AiContextType = {
+export interface AiContextType {
   messages: AiMessage[];
-  responses: AiResponse[];
   currentSessionId: string | null;
   isLoading: boolean;
   error: string | null;
 
-  // Existing methods
-  clearConversation: () => void;
+  // Session Management
+  createChatSession: (request: AiSessionCreate) => Promise<AiSession | null>;
 
-  // New methods
-  createChatSession: (
-    request: AiChatSessionCreateRequest
-  ) => Promise<AiChatSessionCreateResponse>;
-  sendChatMessage: (
-    request: AiChatMessageRequest
-  ) => Promise<AiChatMessageResponse>;
+  // Message Management
+  sendChatMessage: (request: AiMessagePayload) => Promise<AiMessage | null>;
+
+  // Event Description Generation
   generateEventDescription: (
-    eventId: string
-  ) => Promise<AiEventDescriptionResponse>;
-};
+    payload: AiEventDescriptionPayload
+  ) => Promise<AiEventDescription | null>;
+
+  // State Management
+  clearConversation: () => void;
+  clearError: () => void;
+}
 
 const AiContext = createContext<AiContextType>({
   messages: [],
-  responses: [],
   currentSessionId: null,
   isLoading: false,
   error: null,
 
+  createChatSession: async () => null,
+  sendChatMessage: async () => null,
+  generateEventDescription: async () => null,
   clearConversation: () => {},
-
-  createChatSession: async () => ({ session_id: "" }),
-  sendChatMessage: async () => ({ response: [] }),
-  generateEventDescription: async () => ({ description: "" }),
+  clearError: () => {},
 });
 
 export default AiContext;

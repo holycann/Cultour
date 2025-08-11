@@ -1,20 +1,10 @@
 export interface User {
   id: string;
   email: string;
-  password?: string; // Not returned, only used for registration
+  phone?: string;
   role: string;
-  created_at?: Date;
-  updated_at?: Date;
-}
-
-export interface UserProfile {
-  id: string;
-  user_id: string;
-  fullname: string;
-  bio: string;
-  avatar_url: string;
-  identity_image_url: string;
-  created_at: Date;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -29,17 +19,7 @@ export interface AuthCredentials {
  * Registration data extending auth credentials
  */
 export interface RegistrationData extends AuthCredentials {
-  role?: string;
-  fullname?: string;
-}
-
-/**
- * User type for authentication response
- */
-export interface AuthUser {
-  id: string;
-  email: string;
-  role: string;
   fullname: string;
-  avatar_url: string;
+  bio?: string;
+  phone?: string;
 }

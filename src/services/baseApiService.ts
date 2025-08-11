@@ -1,6 +1,10 @@
-import { ApiResponse } from "@/types/ApiResponse";
+import {
+  ApiResponse,
+  isApiResponse,
+  Pagination,
+  Sorting,
+} from "@/types/ApiResponse";
 import { logger } from "@/utils/logger";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, {
   AxiosInstance,
   AxiosRequestConfig,
@@ -12,6 +16,17 @@ import { AuthService } from "./authService";
 export class BaseApiService {
   // Single static axios instance for all services
   private static axiosInstance: AxiosInstance | null = null;
+
+  protected static defaultParams = {
+    pagination: {
+      per_page: 10,
+      page: 1,
+    } as Pagination,
+    sorting: {
+      sort_by: "created_at",
+      sort_order: "desc",
+    } as Sorting,
+  };
 
   /**
    * Get the configured axios instance
@@ -30,23 +45,15 @@ export class BaseApiService {
         },
       });
 
-      // console.log("Base URL:", this.axiosInstance.defaults.baseURL);
-
-      // Request interceptor for adding auth token
       this.axiosInstance.interceptors.request.use(
         async (config: InternalAxiosRequestConfig) => {
           try {
-            // Always get the latest token from AuthService (single source of truth)
-            let token = await AsyncStorage.getItem("userToken");
+            const token = await AuthService.getAuthToken();
 
             if (token) {
               config.headers.Authorization = `Bearer ${token}`;
-            } else {
-              // Fallback: try to get from AsyncStorage if AuthService fails
-              token = await AuthService.getAuthToken();
-              if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-              }
+
+              await AuthService.setAuthToken(token);
             }
           } catch (error) {
             logger.error("BaseApiService", "Token Retrieval Error", error);
@@ -62,11 +69,6 @@ export class BaseApiService {
       // Response interceptor for logging and error handling
       this.axiosInstance.interceptors.response.use(
         (response: AxiosResponse) => {
-          // logger.log("BaseApiService", "API Response", {
-          //   url: response.config.url,
-          //   method: response.config.method,
-          //   status: response.status,
-          // });
           return response;
         },
         async (error) => {
@@ -81,7 +83,7 @@ export class BaseApiService {
               // Attempt to refresh token
               const newToken = await AuthService.getAuthToken();
               if (newToken) {
-                await AsyncStorage.setItem("userToken", newToken);
+                await AuthService.setAuthToken(newToken);
               }
             } catch (refreshError) {
               logger.error(
@@ -113,7 +115,7 @@ export class BaseApiService {
     try {
       // Do the request
       const response = await fn(...args);
-      return response.data;
+      return this.normalizeResponse<T>(response.data);
     } catch (error: any) {
       // If error is invalid token, try to refresh token and retry once
       if (
@@ -122,11 +124,12 @@ export class BaseApiService {
       ) {
         try {
           const newToken = await AuthService.getAuthToken();
+
           if (newToken) {
-            await AsyncStorage.setItem("userToken", newToken);
+            await AuthService.setAuthToken(newToken);
             // Retry the request with new token
             const retryResponse = await fn(...(retryArgs ?? args));
-            return retryResponse.data;
+            return this.normalizeResponse<T>(retryResponse.data);
           }
         } catch (refreshError) {
           // Log refresh error with context
@@ -152,7 +155,6 @@ export class BaseApiService {
     url: string,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
-    // Use DRY helper for GET
     return this.requestWithRetry<T>(this.getAxiosInstance().get, [url, config]);
   }
 
@@ -204,50 +206,80 @@ export class BaseApiService {
     url: string,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
-    // Use DRY helper for DELETE
     return this.requestWithRetry<T>(this.getAxiosInstance().delete, [
       url,
       config,
     ]);
   }
 
+  private static normalizeResponse<T>(data: any): ApiResponse<T> {
+    // Ensure consistent ApiResponse shape and surface top-level pagination
+    const pagination = data?.pagination || data?.metadata?.pagination;
+    return {
+      success: Boolean(data?.success ?? (data?.error ? false : true)),
+      message: data?.message,
+      pagination,
+      data: (data?.data ?? null) as T | null,
+      error: undefined,
+    };
+  }
+
   /**
-   * Error handling method
+   * Handle API response with option to throw or fallback
    */
+  protected static handleApiResponse<T>(
+    response: any,
+    throwOnError: boolean = false
+  ): ApiResponse<T> {
+    if (isApiResponse<T>(response)) {
+      return response;
+    }
+
+    if (throwOnError) {
+      throw new Error(response?.message);
+    }
+
+    return {
+      success: false,
+      data: null,
+      error: response?.message,
+    };
+  }
+
   private static handleError<T>(error: any): ApiResponse<T> {
     // Check if error response follows backend error structure
     if (error.response && error.response.data) {
       const errorData = error.response.data;
+      const message: string =
+        errorData?.message || errorData?.error?.details || "An error occurred";
+      const structuredDetails = errorData?.error || {
+        code: errorData?.error?.code,
+        details: errorData?.error?.details,
+      };
 
-      // Ensure the error response matches ApiResponse structure
       const errorResponse: ApiResponse<T> = {
         success: false,
-        message: errorData.message || "An error occurred",
+        message,
         data: null,
-        error: errorData.error || "An unknown error occurred",
-        details: errorData.details || null,
-        metadata: errorData.metadata,
+        error: structuredDetails,
       };
 
       // Log the error
-      logger.error("BaseApiService", "API Error", {
-        error: errorResponse.error,
-        details: errorResponse.details,
-      });
+      logger.error("BaseApiService", "API Error", errorResponse);
 
       return errorResponse;
     }
 
     // Network or other errors
+    const networkMessage = error?.message || "An unexpected error occurred";
     const networkErrorResponse: ApiResponse<T> = {
       success: false,
-      message: "Network error",
+      message: networkMessage,
       data: null,
-      error: error.message || "An unexpected error occurred",
-      details: error,
+      error: networkMessage,
     };
 
-    logger.error("BaseApiService", "Network Error", networkErrorResponse.error);
+    logger.error("BaseApiService", "Network Error", networkMessage);
 
     return networkErrorResponse;
   }

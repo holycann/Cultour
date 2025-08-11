@@ -1,10 +1,11 @@
 import Colors from "@/constants/Colors";
 import { useEvent } from "@/hooks/useEvent";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -16,9 +17,22 @@ export default function EventScreen() {
   const { events, fetchEvents, isLoading, error } = useEvent();
   const router = useRouter();
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadEvents = async () => {
+    try {
+      setRefreshing(true);
+      await fetchEvents();
+    } catch (error) {
+      console.error("Failed to fetch events", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     if (events.length === 0) {
-      fetchEvents();
+      loadEvents();
     }
   }, [events, fetchEvents]);
 
@@ -71,6 +85,14 @@ export default function EventScreen() {
           paddingBottom: 30,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={loadEvents}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
       >
         {events.map((event) => (
           <View

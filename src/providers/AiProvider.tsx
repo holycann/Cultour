@@ -1,144 +1,205 @@
-import React, { useCallback, useState } from "react";
-import AiContext from "../contexts/AiContext";
+import { showDialogError } from "@/utils/alert";
+import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import AiContext, { AiContextType } from "../contexts/AiContext";
 import { AiService } from "../services/aiService";
 import {
-  AiChatMessageRequest,
-  AiChatMessageResponse,
-  AiChatSessionCreateRequest,
-  AiChatSessionCreateResponse,
-  AiEventDescriptionResponse,
+  AiEventDescription,
+  AiEventDescriptionPayload,
   AiMessage,
-  AiResponse,
+  AiMessagePayload,
+  AiSession,
+  AiSessionCreate,
 } from "../types/Ai";
 
-type AiProviderProps = {
-  children: React.ReactNode;
+type AiState = {
+  messages: AiMessage[];
+  currentSessionId: string | null;
+  isLoading: boolean;
+  error: string | null;
 };
 
-export const AiProvider: React.FC<AiProviderProps> = ({ children }) => {
-  const [messages, setMessages] = useState<AiMessage[]>([]);
-  const [responses, setResponses] = useState<AiResponse[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+type AiAction =
+  | { type: "AI_START" }
+  | { type: "AI_SESSION_SUCCESS"; payload: AiSession }
+  | { type: "SEND_MESSAGE"; payload: AiMessage }
+  | { type: "AI_MESSAGE_SUCCESS"; payload: AiMessage }
+  | { type: "AI_ERROR"; payload: string }
+  | { type: "AI_RESET" }
+  | { type: "AI_CLEAR_ERROR" };
 
-  const clearConversation = useCallback(() => {
-    setMessages([]);
-    setResponses([]);
-    setCurrentSessionId(null);
-    setError(null);
+const initialState: AiState = {
+  messages: [],
+  currentSessionId: null,
+  isLoading: false,
+  error: null,
+};
+
+function aiReducer(state: AiState, action: AiAction): AiState {
+  switch (action.type) {
+    case "AI_START":
+      return { ...state, isLoading: true, error: null };
+    case "AI_SESSION_SUCCESS":
+      return {
+        ...state,
+        currentSessionId: action.payload.session_id,
+        isLoading: false,
+        error: null,
+      };
+    case "SEND_MESSAGE":
+      return {
+        ...state,
+        messages: [...state.messages, action.payload],
+        isLoading: true,
+      };
+    case "AI_MESSAGE_SUCCESS":
+      return {
+        ...state,
+        messages: [...state.messages, action.payload],
+        isLoading: false,
+        error: null,
+      };
+    case "AI_ERROR":
+      return { ...state, isLoading: false, error: action.payload };
+    case "AI_RESET":
+      return initialState;
+    case "AI_CLEAR_ERROR":
+      return { ...state, error: null };
+    default:
+      return state;
+  }
+}
+
+export function AiProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(aiReducer, initialState);
+
+  const handleError = useCallback((error: unknown, customMessage?: string) => {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected AI error occurred";
+
+    dispatch({ type: "AI_ERROR", payload: errorMessage });
+    showDialogError("AI Error", errorMessage);
   }, []);
 
   const createChatSession = useCallback(
-    async (
-      request: AiChatSessionCreateRequest
-    ): Promise<AiChatSessionCreateResponse> => {
-      setIsLoading(true);
-      setError(null);
+    async (request: AiSessionCreate): Promise<AiSession | null> => {
+      dispatch({ type: "AI_START" });
 
       try {
-        const response = await AiService.createChatSession(request);
-
-        // Validasi session ID
-        if (!response.session_id) {
-          const errorMsg = "Invalid session ID received from backend";
-          console.error(errorMsg);
-          setError(errorMsg);
-          throw new Error(errorMsg);
+        if (!request.event_id) {
+          throw new Error("Event ID is required for creating a chat session");
         }
 
-        // Set session ID
-        setCurrentSessionId(response.session_id);
-        return response;
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to create chat session";
+        const session = await AiService.createChatSession(request);
 
-        setError(errorMessage);
-        throw err;
-      } finally {
-        setIsLoading(false);
+        if (session) {
+          dispatch({
+            type: "AI_SESSION_SUCCESS",
+            payload: session,
+          });
+        }
+
+        return session;
+      } catch (error) {
+        handleError(error, "Failed to create AI chat session");
+        return null;
       }
     },
-    []
+    [handleError]
   );
 
   const sendChatMessage = useCallback(
-    async (request: AiChatMessageRequest): Promise<AiChatMessageResponse> => {
-      if (!currentSessionId) {
-        throw new Error("No active chat session");
+    async (request: AiMessagePayload): Promise<AiMessage | null> => {
+      if (!state.currentSessionId) {
+        handleError(null, "No active AI chat session");
+        return null;
       }
 
-      setIsLoading(true);
-      setError(null);
+      dispatch({ type: "AI_START" });
 
       try {
-        // Add user message
-        const userMessage: AiMessage = {
-          role: "user",
-          content: request.message,
+        const data: AiMessage = {
+          event_id: "",
+          session_id: request.session_id,
+          is_user_message: true,
+          response: [request.message],
         };
-        setMessages((prev) => [...prev, userMessage]);
 
-        // Send message to AI service
-        const response = await AiService.sendChatMessage(request);
+        dispatch({
+          type: "SEND_MESSAGE",
+          payload: data,
+        });
 
-        // Add AI response
-        const aiMessage: AiMessage = {
-          role: "assistant",
-          content: response.response.join(" "),
-        };
-        setMessages((prev) => [...prev, aiMessage]);
+        const message = await AiService.sendChatMessage(request);
 
-        return response;
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to send chat message";
-        setError(errorMessage);
-        throw err;
-      } finally {
-        setIsLoading(false);
+        if (message) {
+          dispatch({
+            type: "AI_MESSAGE_SUCCESS",
+            payload: message,
+          });
+        }
+
+        return message;
+      } catch (error) {
+        handleError(error, "Failed to send AI chat message");
+        return null;
       }
     },
-    [currentSessionId]
+    [state.currentSessionId, handleError]
   );
 
   const generateEventDescription = useCallback(
-    async (eventId: string): Promise<AiEventDescriptionResponse> => {
-      setIsLoading(true);
-      setError(null);
+    async (
+      payload: AiEventDescriptionPayload
+    ): Promise<AiEventDescription | null> => {
+      dispatch({ type: "AI_START" });
 
       try {
-        return await AiService.generateEventDescription(eventId);
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Failed to generate event description";
-        setError(errorMessage);
-        throw err;
-      } finally {
-        setIsLoading(false);
+        const description = await AiService.generateEventDescription(payload);
+        return description;
+      } catch (error) {
+        handleError(error, "Failed to generate event description");
+        return null;
       }
     },
-    []
+    [handleError]
+  );
+
+  const clearConversation = useCallback(() => {
+    dispatch({ type: "AI_RESET" });
+  }, []);
+
+  const clearError = useCallback(() => {
+    dispatch({ type: "AI_CLEAR_ERROR" });
+  }, []);
+
+  const contextValue = useMemo<AiContextType>(
+    () => ({
+      messages: state.messages,
+      currentSessionId: state.currentSessionId,
+      isLoading: state.isLoading,
+      error: state.error,
+      createChatSession,
+      sendChatMessage,
+      generateEventDescription,
+      clearConversation,
+      clearError,
+    }),
+    [
+      state.messages,
+      state.currentSessionId,
+      state.isLoading,
+      state.error,
+      createChatSession,
+      sendChatMessage,
+      generateEventDescription,
+      clearConversation,
+      clearError,
+    ]
   );
 
   return (
-    <AiContext.Provider
-      value={{
-        messages,
-        responses,
-        currentSessionId,
-        isLoading,
-        error,
-        clearConversation,
-        createChatSession,
-        sendChatMessage,
-        generateEventDescription,
-      }}
-    >
-      {children}
-    </AiContext.Provider>
+    <AiContext.Provider value={contextValue}>{children}</AiContext.Provider>
   );
-};
+}

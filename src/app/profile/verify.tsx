@@ -77,9 +77,9 @@ export default function IdentityVerificationScreen() {
 
     try {
       const success = await uploadIdentity({
-        uri: idDocument.uri,
-        type: idDocument.type,
-        name: idDocument.fileName as string,
+        id: profile?.id || "",
+        image: idDocument,
+        identity_image_url: null,
       });
 
       if (success) {
@@ -104,7 +104,10 @@ export default function IdentityVerificationScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} className="flex-1 bg-[#EEC887]">
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      className="flex-1 bg-[#EEC887]"
+    >
       {/* Header dengan lekukan */}
       <DetailHeader title="Identity Verification" />
 

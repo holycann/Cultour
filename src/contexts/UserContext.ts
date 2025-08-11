@@ -1,25 +1,38 @@
-import { User, UserProfile } from "@/types/User";
+import { User } from "@/types/User";
+import {
+  UpdateAvatar,
+  UpdateIdentity,
+  UserProfile,
+  UserProfilePayload
+} from "@/types/UserProfile";
 import { createContext } from "react";
 
 /**
- * User context type definition
+ * User context type definition with enhanced methods and error handling
  */
 export interface UserContextType {
   user: User | null;
   profile: UserProfile | null;
   isLoading: boolean;
   error: string | null;
-  fetchUserProfile: (userId: string) => Promise<void>;
-  createUserProfile: (userProfileData: Partial<UserProfile>) => Promise<boolean>;
-  updateProfile: (profileData: Partial<UserProfile>) => Promise<boolean>;
-  updateUser: (userData: Partial<User>) => Promise<boolean>;
+
+  // Profile Management Methods
+  fetchUserProfile: (userId?: string) => Promise<UserProfile | null>;
+  createUserProfile: (userProfileData: UserProfilePayload) => Promise<UserProfile | null>;
+  updateProfile: (profileData: UserProfilePayload) => Promise<UserProfilePayload | null>;
+  
+  // File Upload Methods
   uploadAvatar: (
-    avatarFile: File | { uri: string; type?: string; name?: string }
-  ) => Promise<boolean>;
+    payload: UpdateAvatar
+  ) => Promise<string | null>;
+  
   uploadIdentity: (
-    identityFile: File | { uri: string; type?: string; name?: string }
-  ) => Promise<boolean>;
+    payload: UpdateIdentity
+  ) => Promise<string | null>;
+
+  // State Management Methods
   clearError: () => void;
+  resetUserState: () => void;
 }
 
 /**

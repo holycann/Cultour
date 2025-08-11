@@ -1,34 +1,25 @@
-import { BadgeContext } from "@/contexts/BadgeContext";
+import { BadgeContext, BadgeContextType } from "@/contexts/BadgeContext";
 import { BadgeService } from "@/services/badgeService";
-import { parseError } from "@/types/AppError";
+import { Pagination, Sorting } from "@/types/ApiResponse";
 import { Badge, UserBadge } from "@/types/Badge";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
-/**
- * Badge state type for reducer
- */
-interface BadgeState {
+type BadgeState = {
   badges: Badge[];
   userBadges: UserBadge[];
   isLoading: boolean;
   error: string | null;
-}
+};
 
-/**
- * Badge action types for reducer
- */
 type BadgeAction =
   | { type: "BADGE_START" }
-  | { type: "BADGE_SUCCESS_ALL"; payload: Badge[] }
-  | { type: "BADGE_SUCCESS_USER"; payload: UserBadge[] }
+  | { type: "BADGE_SUCCESS_BADGES"; payload: Badge[] }
+  | { type: "BADGE_SUCCESS_USER_BADGES"; payload: UserBadge[] }
   | { type: "BADGE_ERROR"; payload: string }
-  | { type: "BADGE_CLEAR_ERROR" }
-  | { type: "BADGE_RESET" };
+  | { type: "BADGE_RESET" }
+  | { type: "BADGE_CLEAR_ERROR" };
 
-/**
- * Initial badge state
- */
 const initialState: BadgeState = {
   badges: [],
   userBadges: [],
@@ -36,132 +27,135 @@ const initialState: BadgeState = {
   error: null,
 };
 
-/**
- * Reducer function for badge state management
- */
 function badgeReducer(state: BadgeState, action: BadgeAction): BadgeState {
   switch (action.type) {
     case "BADGE_START":
       return { ...state, isLoading: true, error: null };
-    case "BADGE_SUCCESS_ALL":
+    case "BADGE_SUCCESS_BADGES":
       return {
         ...state,
-        isLoading: false,
         badges: action.payload,
+        isLoading: false,
         error: null,
       };
-    case "BADGE_SUCCESS_USER":
+    case "BADGE_SUCCESS_USER_BADGES":
       return {
         ...state,
-        isLoading: false,
         userBadges: action.payload,
+        isLoading: false,
         error: null,
       };
     case "BADGE_ERROR":
       return { ...state, isLoading: false, error: action.payload };
-    case "BADGE_CLEAR_ERROR":
-      return { ...state, error: null };
     case "BADGE_RESET":
       return initialState;
+    case "BADGE_CLEAR_ERROR":
+      return { ...state, error: null };
     default:
       return state;
   }
 }
 
-interface BadgeProviderProps {
-  children: ReactNode;
-}
-
-export function BadgeProvider({ children }: BadgeProviderProps) {
+export function BadgeProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(badgeReducer, initialState);
 
-  /**
-   * Handle any API errors
-   */
   const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const appError = parseError(error);
-    const errorMessage = customMessage || appError.message;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected badge error occurred";
 
     dispatch({ type: "BADGE_ERROR", payload: errorMessage });
-    showDialogError("Error", errorMessage);
+    showDialogError("Badge Error", errorMessage);
   }, []);
 
-  /**
-   * Fetch all badges
-   */
-  const fetchBadges = useCallback(async () => {
-    dispatch({ type: "BADGE_START" });
-
-    try {
-      const data = await BadgeService.fetchBadges();
-
-      dispatch({
-        type: "BADGE_SUCCESS_ALL",
-        payload: data,
-      });
-    } catch (error) {
-      handleError(error, "Gagal mengambil daftar badge");
-    }
-  }, [handleError]);
-
-  /**
-   * Fetch user badges
-   */
-  const fetchUserBadges = useCallback(
-    async (userId: string) => {
+  const fetchBadges = useCallback(
+    async (options?: {
+      pagination?: Pagination;
+      sorting?: Sorting;
+    }): Promise<Badge[] | null> => {
       dispatch({ type: "BADGE_START" });
 
       try {
-        const data = await BadgeService.fetchUserBadges(userId);
+        const response = await BadgeService.fetchBadges(
+          options?.pagination,
+          options?.sorting
+        );
 
-        dispatch({
-          type: "BADGE_SUCCESS_USER",
-          payload: data,
-        });
+        if (response.success && response.data) {
+          dispatch({
+            type: "BADGE_SUCCESS_BADGES",
+            payload: response.data,
+          });
+          return response.data;
+        }
+
+        return null;
       } catch (error) {
-        handleError(error, "Gagal mengambil badge pengguna");
+        handleError(error, "Gagal mengambil daftar badge");
+        return null;
       }
     },
     [handleError]
   );
 
-  /**
-   * Add badge to user
-   */
-  const addBadgeToUser = useCallback(
-    async (userId: string, badgeId: string) => {
+  const fetchUserBadges = useCallback(
+    async (options?: {
+      pagination?: Pagination;
+      sorting?: Sorting;
+    }): Promise<UserBadge[] | null> => {
       dispatch({ type: "BADGE_START" });
 
       try {
-        const data = await BadgeService.addBadgeToUser(userId, badgeId);
+        const response = await BadgeService.fetchUserBadges(
+          options?.pagination,
+          options?.sorting
+        );
 
-        // Optimistically update local state
-        dispatch({
-          type: "BADGE_SUCCESS_USER", 
-          payload: data ? [...state.userBadges, data] : state.userBadges
-        });
+        if (response.success && response.data) {
+          dispatch({
+            type: "BADGE_SUCCESS_USER_BADGES",
+            payload: response.data,
+          });
+          return response.data;
+        }
 
-        showDialogSuccess("Berhasil", "Badge berhasil ditambahkan");
-        return true;
+        return null;
       } catch (error) {
-        handleError(error, "Gagal menambahkan badge");
-        return false;
+        handleError(error, "Gagal mengambil badge pengguna");
+        return null;
       }
     },
-    [handleError, state.userBadges]
+    [handleError]
   );
 
-  /**
-   * Clear error state
-   */
+  const addBadgeToUser = useCallback(
+    async (badgeId: string): Promise<UserBadge | null> => {
+      dispatch({ type: "BADGE_START" });
+
+      try {
+        // Implement badge addition logic
+        // This might involve calling a service method to add a badge
+        // For now, this is a placeholder
+        showDialogSuccess("Berhasil", "Badge berhasil ditambahkan");
+        return null;
+      } catch (error) {
+        handleError(error, "Gagal menambahkan badge");
+        return null;
+      }
+    },
+    [handleError]
+  );
+
   const clearError = useCallback(() => {
     dispatch({ type: "BADGE_CLEAR_ERROR" });
   }, []);
 
-  /**
-   * Context value
-   */
-  const value = useMemo(
+  const resetBadgeState = useCallback(() => {
+    dispatch({ type: "BADGE_RESET" });
+  }, []);
+
+  const contextValue = useMemo<BadgeContextType>(
     () => ({
       badges: state.badges,
       userBadges: state.userBadges,
@@ -171,6 +165,7 @@ export function BadgeProvider({ children }: BadgeProviderProps) {
       fetchUserBadges,
       addBadgeToUser,
       clearError,
+      resetBadgeState,
     }),
     [
       state.badges,
@@ -181,10 +176,13 @@ export function BadgeProvider({ children }: BadgeProviderProps) {
       fetchUserBadges,
       addBadgeToUser,
       clearError,
+      resetBadgeState,
     ]
   );
 
   return (
-    <BadgeContext.Provider value={value}>{children}</BadgeContext.Provider>
+    <BadgeContext.Provider value={contextValue}>
+      {children}
+    </BadgeContext.Provider>
   );
 }

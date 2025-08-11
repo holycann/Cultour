@@ -7,7 +7,7 @@ export default function OAuthCallback() {
   useEffect(() => {
     const timer = setTimeout(() => {
       router.replace("/(tabs)/profile");
-    }, 100000);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, []);

@@ -1,11 +1,11 @@
 import {
-  AiChatMessageRequest,
-  AiChatMessageResponse,
-  AiChatSessionCreateRequest,
-  AiChatSessionCreateResponse,
-  AiEventDescriptionResponse,
-  AiResponse,
-} from "../types/Ai";
+  AiEventDescription,
+  AiEventDescriptionPayload,
+  AiMessage,
+  AiMessagePayload,
+  AiSession,
+  AiSessionCreate,
+} from "@/types/Ai";
 import { BaseApiService } from "./baseApiService";
 
 /**
@@ -13,75 +13,66 @@ import { BaseApiService } from "./baseApiService";
  */
 export class AiService extends BaseApiService {
   /**
-   * Fetch conversation history
-   * @returns Promise resolving to array of AI responses
-   */
-  static async getConversationHistory(): Promise<AiResponse[]> {
-    try {
-      const response = await this.get<AiResponse[]>("/ai/history");
-      return response.data || [];
-    } catch (error) {
-      console.error("AI History Error:", error);
-      throw error;
-    }
-  }
-
-  /**
    * Create a new AI chat session
-   * @param request Chat session creation request
-   * @returns Promise resolving to chat session ID
    */
   static async createChatSession(
-    request: AiChatSessionCreateRequest
-  ): Promise<AiChatSessionCreateResponse> {
+    request: AiSessionCreate
+  ): Promise<AiSession | null> {
     try {
-      const sessionID = await this.post<
-        AiChatSessionCreateRequest,
-        AiChatSessionCreateResponse
-      >("/ai/chat/session", request);
-      return sessionID || { session_id: "" };
+      console.log("request:", request);
+      const response = await this.post<AiSessionCreate, AiSession>(
+        "/ai/chat/session",
+        request
+      );
+
+      console.log("response:", response);
+
+      return this.handleApiResponse<AiSession>(response, true).data;
     } catch (error) {
-      console.error("AI Chat Session Creation Error:", error);
+      console.error("Failed to create ai session", error);
       throw error;
     }
   }
 
   /**
    * Send a message in an AI chat session
-   * @param sessionId Chat session ID
-   * @param request Message request
-   * @returns Promise resolving to AI chat message response
    */
   static async sendChatMessage(
-    request: AiChatMessageRequest
-  ): Promise<AiChatMessageResponse> {
+    request: AiMessagePayload
+  ): Promise<AiMessage | null> {
     try {
-      const messages = await this.post<
-        AiChatMessageRequest,
-        AiChatMessageResponse
-      >(`/ai/chat/${request.session_id}/message`, request);
-      return messages || { response: [] };
+      const response = await this.post<AiMessagePayload, AiMessage>(
+        `/ai/chat/${request.session_id}/message`,
+        request
+      );
+
+      if (response.data) {
+        response.data.session_id = request.session_id;
+        response.data.is_user_message = false;
+      }
+
+      return this.handleApiResponse<AiMessage>(response, true).data;
     } catch (error) {
-      console.error("AI Chat Message Error:", error);
+      console.error("Failed to send message to ai:", error);
       throw error;
     }
   }
 
   /**
-   * Generate an AI event description
-   * @param eventId Event ID
-   * @returns Promise resolving to event description
+   * Generate an AI event description (title/context-based)
    */
   static async generateEventDescription(
-    eventId: string
-  ): Promise<AiEventDescriptionResponse> {
+    payload: AiEventDescriptionPayload
+  ): Promise<AiEventDescription | null> {
     try {
-      const response = await this.get<AiEventDescriptionResponse>(
-        `/ai/event/${eventId}/description`
-      );
-      return response.data || { description: "" };
+      const response = await this.post<
+        AiEventDescriptionPayload,
+        AiEventDescription
+      >("/ai/events/description", payload);
+
+      return this.handleApiResponse<AiEventDescription>(response, true).data;
     } catch (error) {
-      console.error("AI Event Description Generation Error:", error);
+      console.error("Failed generate event description:", error);
       throw error;
     }
   }

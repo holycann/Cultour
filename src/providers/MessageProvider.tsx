@@ -1,55 +1,36 @@
-import { MessageContext } from "@/contexts/MessageContext";
+import { MessageContext, MessageContextType } from "@/contexts/MessageContext";
 import { MessageService } from "@/services/messageService";
-import { parseError } from "@/types/AppError";
+import { Pagination } from "@/types/ApiResponse";
 import {
-  AiChatContext,
-  AiChatMessage,
-  DiscussionMessage,
+  Message,
+  SendDiscussionMessage,
+  UpdateDiscussionMessage,
 } from "@/types/Message";
 import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
-/**
- * Message state type for reducer
- */
-interface MessageState {
-  aiChats: { [eventId: string]: AiChatContext };
-  discussionMessages: DiscussionMessage[];
+type MessageState = {
+  discussionMessages: Message[];
   isLoading: boolean;
   error: string | null;
-}
+};
 
-/**
- * Message action types for reducer
- */
 type MessageAction =
   | { type: "MESSAGE_START" }
-  | {
-      type: "ADD_EVENT_AI_MESSAGE";
-      payload: { eventId: string; message: AiChatMessage };
-    }
-  | { type: "CLEAR_EVENT_AI_CHAT"; payload: string }
-  | { type: "DISCUSSION_MESSAGES_SUCCESS"; payload: DiscussionMessage[] }
-  | { type: "ADD_DISCUSSION_MESSAGE"; payload: DiscussionMessage }
-  | { type: "UPDATE_DISCUSSION_MESSAGE"; payload: DiscussionMessage }
+  | { type: "DISCUSSION_MESSAGES_SUCCESS"; payload: Message[] }
+  | { type: "ADD_DISCUSSION_MESSAGE"; payload: Message }
+  | { type: "UPDATE_DISCUSSION_MESSAGE"; payload: Message }
   | { type: "DELETE_DISCUSSION_MESSAGE"; payload: string }
   | { type: "MESSAGE_ERROR"; payload: string }
   | { type: "MESSAGE_CLEAR_ERROR" }
   | { type: "MESSAGE_RESET" };
 
-/**
- * Initial message state
- */
 const initialState: MessageState = {
-  aiChats: {},
   discussionMessages: [],
   isLoading: false,
   error: null,
 };
 
-/**
- * Reducer function for message state management
- */
 function messageReducer(
   state: MessageState,
   action: MessageAction
@@ -57,35 +38,6 @@ function messageReducer(
   switch (action.type) {
     case "MESSAGE_START":
       return { ...state, isLoading: true, error: null };
-    case "ADD_EVENT_AI_MESSAGE": {
-      const { eventId, message } = action.payload;
-      const existingChat = state.aiChats[eventId] || {
-        event_id: eventId,
-        messages: [],
-      };
-
-      return {
-        ...state,
-        isLoading: false,
-        aiChats: {
-          ...state.aiChats,
-          [eventId]: {
-            ...existingChat,
-            messages: [...existingChat.messages, message],
-            last_interaction_at: new Date(),
-          },
-        },
-      };
-    }
-    case "CLEAR_EVENT_AI_CHAT": {
-      const { [action.payload]: removedChat, ...remainingChats } =
-        state.aiChats;
-      return {
-        ...state,
-        aiChats: remainingChats,
-        isLoading: false,
-      };
-    }
     case "DISCUSSION_MESSAGES_SUCCESS":
       return {
         ...state,
@@ -126,114 +78,98 @@ function messageReducer(
   }
 }
 
-interface MessageProviderProps {
-  children: ReactNode;
-}
-
-export function MessageProvider({ children }: MessageProviderProps) {
+export function MessageProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(messageReducer, initialState);
 
-  /**
-   * Handle any API errors
-   */
   const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const appError = parseError(error);
-    const errorMessage = customMessage || appError.message;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected message error occurred";
 
     dispatch({ type: "MESSAGE_ERROR", payload: errorMessage });
-    showDialogError("Error", errorMessage);
+    showDialogError("Message Error", errorMessage);
   }, []);
 
-  /**
-   * Ask AI about an event
-   */
-  const askAiAboutEvent = useCallback(
-    async (eventId: string, query: string) => {
+  const fetchThreadMessages = useCallback(
+    async (
+      threadId: string,
+      options?: {
+        pagination?: Pagination;
+      }
+    ): Promise<Message[] | null> => {
       dispatch({ type: "MESSAGE_START" });
 
       try {
-        // User message
-        const userMessage: AiChatMessage = {
-          event_id: eventId,
-          content: query,
-          is_user_message: true,
-          created_at: new Date(),
-        };
+        const response = await MessageService.fetchMessagesByThread(threadId);
 
-        // Dispatch user message first
-        dispatch({
-          type: "ADD_EVENT_AI_MESSAGE",
-          payload: { eventId, message: userMessage },
-        });
-
-        // Get AI response
-        const aiResponse = await MessageService.askAiAboutEvent(eventId, query);
-
-        if (aiResponse) {
+        if (response.success && response.data) {
           dispatch({
-            type: "ADD_EVENT_AI_MESSAGE",
-            payload: { eventId, message: aiResponse },
+            type: "DISCUSSION_MESSAGES_SUCCESS",
+            payload: response.data,
           });
-
-          return aiResponse;
+          return response.data;
         }
 
         return null;
-      } catch (error) {
-        handleError(error, "Gagal berkonsultasi dengan AI");
-        return null;
-      }
-    },
-    [handleError]
-  );
-
-  /**
-   * Clear AI chat for a specific event
-   */
-  const clearEventAiChat = useCallback((eventId: string) => {
-    dispatch({ type: "CLEAR_EVENT_AI_CHAT", payload: eventId });
-  }, []);
-
-  /**
-   * Fetch thread messages
-   */
-  const fetchThreadMessages = useCallback(
-    async (threadId: string) => {
-      dispatch({ type: "MESSAGE_START" });
-
-      try {
-        const messages = await MessageService.fetchThreadMessages(threadId);
-        dispatch({ type: "DISCUSSION_MESSAGES_SUCCESS", payload: messages });
       } catch (error) {
         handleError(error, "Gagal mengambil pesan thread");
+        return null;
       }
     },
     [handleError]
   );
 
-  /**
-   * Send discussion message
-   */
   const sendDiscussionMessage = useCallback(
-    async (threadId: string, content: string) => {
+    async (payload: SendDiscussionMessage): Promise<Message | null> => {
+      // Validate input parameters
+      if (!payload.thread_id) {
+        handleError(
+          new Error("Thread ID is required"),
+          "Gagal mengirim pesan: Thread ID tidak valid"
+        );
+        return null;
+      }
+
+      // Validate message content
+      const trimmedContent = payload.content.trim();
+      if (!trimmedContent) {
+        handleError(
+          new Error("Message content cannot be empty"),
+          "Gagal mengirim pesan: Konten pesan kosong"
+        );
+        return null;
+      }
+
+      if (trimmedContent.length > 1000) {
+        handleError(
+          new Error("Message content exceeds maximum length"),
+          "Gagal mengirim pesan: Pesan terlalu panjang"
+        );
+        return null;
+      }
+
       dispatch({ type: "MESSAGE_START" });
 
       try {
-        const message = await MessageService.sendDiscussionMessage(
-          threadId,
-          content
-        );
+        const message = await MessageService.sendDiscussionMessage(payload);
 
-        if (message) {
-          message.sender_id = message.user_id;
+        // Comprehensive message validation
+        if (!message) {
+          handleError(
+            new Error("Failed to send message"),
+            "Gagal mengirim pesan diskusi"
+          );
+          return null;
         }
 
-        if (message) {
-          dispatch({ type: "ADD_DISCUSSION_MESSAGE", payload: message });
-          return message;
-        }
+        // Dispatch message
+        dispatch({
+          type: "ADD_DISCUSSION_MESSAGE",
+          payload: message,
+        });
 
-        return null;
+        return message;
       } catch (error) {
         handleError(error, "Gagal mengirim pesan diskusi");
         return null;
@@ -242,18 +178,13 @@ export function MessageProvider({ children }: MessageProviderProps) {
     [handleError]
   );
 
-  /**
-   * Update discussion message
-   */
   const updateDiscussionMessage = useCallback(
-    async (messageId: string, content: string) => {
+    async (payload: UpdateDiscussionMessage): Promise<Message | null> => {
       dispatch({ type: "MESSAGE_START" });
 
       try {
-        const updatedMessage = await MessageService.updateDiscussionMessage(
-          messageId,
-          content
-        );
+        const updatedMessage =
+          await MessageService.updateDiscussionMessage(payload);
 
         if (updatedMessage) {
           dispatch({
@@ -272,11 +203,8 @@ export function MessageProvider({ children }: MessageProviderProps) {
     [handleError]
   );
 
-  /**
-   * Delete discussion message
-   */
   const deleteDiscussionMessage = useCallback(
-    async (messageId: string) => {
+    async (messageId: string): Promise<boolean> => {
       dispatch({ type: "MESSAGE_START" });
 
       try {
@@ -297,49 +225,42 @@ export function MessageProvider({ children }: MessageProviderProps) {
     [handleError]
   );
 
-  /**
-   * Clear error state
-   */
   const clearError = useCallback(() => {
     dispatch({ type: "MESSAGE_CLEAR_ERROR" });
   }, []);
 
-  /**
-   * Context value
-   */
-  const value = useMemo(() => {
-    // Get the current event's AI chat if exists
-    const currentEventId = Object.keys(state.aiChats)[0];
-    const aiChat = currentEventId ? state.aiChats[currentEventId] : undefined;
+  const resetMessageState = useCallback(() => {
+    dispatch({ type: "MESSAGE_RESET" });
+  }, []);
 
-    return {
-      aiChat,
+  const contextValue = useMemo<MessageContextType>(
+    () => ({
       discussionMessages: state.discussionMessages,
       isLoading: state.isLoading,
       error: state.error,
-      askAiAboutEvent,
-      clearEventAiChat,
       fetchThreadMessages,
       sendDiscussionMessage,
       updateDiscussionMessage,
       deleteDiscussionMessage,
       clearError,
-    };
-  }, [
-    state.aiChats,
-    state.discussionMessages,
-    state.isLoading,
-    state.error,
-    askAiAboutEvent,
-    clearEventAiChat,
-    fetchThreadMessages,
-    sendDiscussionMessage,
-    updateDiscussionMessage,
-    deleteDiscussionMessage,
-    clearError,
-  ]);
+      resetMessageState,
+    }),
+    [
+      state.discussionMessages,
+      state.isLoading,
+      state.error,
+      fetchThreadMessages,
+      sendDiscussionMessage,
+      updateDiscussionMessage,
+      deleteDiscussionMessage,
+      clearError,
+      resetMessageState,
+    ]
+  );
 
   return (
-    <MessageContext.Provider value={value}>{children}</MessageContext.Provider>
+    <MessageContext.Provider value={contextValue}>
+      {children}
+    </MessageContext.Provider>
   );
 }

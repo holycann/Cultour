@@ -1,26 +1,34 @@
+import { ApiResponse, Pagination, Sorting } from "@/types/ApiResponse";
 import { Badge, UserBadge } from "@/types/Badge";
-import { BaseApiService } from './baseApiService';
+import { BaseApiService } from "./baseApiService";
 
 /**
  * Badge service for managing badge-related API operations
  */
 export class BadgeService extends BaseApiService {
   /**
-   * Fetch all available badges
-   * @returns Promise resolving to array of badges
+   * Fetch available badges (paginated)
    */
-  static async fetchBadges(): Promise<Badge[]> {
+  static async fetchBadges(
+    pagination?: Pagination,
+    sort?: Sorting
+  ): Promise<ApiResponse<Badge[]>> {
     try {
-      const response = await this.get<Badge[]>('/badges');
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch badges');
-      }
-      
-      return response.data || [];
+      const response = await this.get<Badge[]>("/badges", {
+        params: {
+          ...(pagination ?? BaseApiService.defaultParams.pagination),
+          ...(sort ?? BaseApiService.defaultParams.sorting),
+        },
+      });
+
+      return this.handleApiResponse<Badge[]>(response, false);
     } catch (error) {
       console.error("Failed to fetch badges:", error);
-      throw error;
+      return {
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
@@ -29,49 +37,26 @@ export class BadgeService extends BaseApiService {
    * @param userId User's unique identifier
    * @returns Promise resolving to array of user badges
    */
-  static async fetchUserBadges(userId: string): Promise<UserBadge[]> {
+  static async fetchUserBadges(
+    pagination?: Pagination,
+    sort?: Sorting
+  ): Promise<ApiResponse<UserBadge[]>> {
     try {
-      const response = await this.get<UserBadge[]>(`/users/badges/${userId}`);
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch user badges');
-      }
-      
-      return response.data || [];
+      const response = await this.get<UserBadge[]>(`/users/badges`, {
+        params: {
+          ...(pagination ?? BaseApiService.defaultParams.pagination),
+          ...(sort ?? BaseApiService.defaultParams.sorting),
+        },
+      });
+
+      return this.handleApiResponse<UserBadge[]>(response, false);
     } catch (error) {
       console.error("Failed to fetch user badges:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Add a badge to a user
-   * @param userId User's unique identifier
-   * @param badgeId Badge's unique identifier
-   * @returns Promise resolving to the added user badge
-   */
-  static async addBadgeToUser(
-    userId: string, 
-    badgeId: string
-  ): Promise<UserBadge> {
-    try {
-      const response = await this.post<{ userId: string; badgeId: string }, UserBadge>(
-        `/users/${userId}/badges`, 
-        { userId, badgeId }
-      );
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to add badge to user');
-      }
-      
-      if (!response.data) {
-        throw new Error('No user badge data returned');
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error("Failed to add badge to user:", error);
-      throw error;
+      return {
+        success: false,
+        data: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 }

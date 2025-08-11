@@ -1,32 +1,22 @@
+import { ThreadContext, ThreadContextType } from "@/contexts/ThreadContext";
+import { ThreadService } from "@/services/threadService";
 import {
-  ThreadContext,
-  ThreadContextType,
-  ThreadState,
-} from "@/contexts/ThreadContext";
-import { ThreadResult, ThreadService } from "@/services/threadService";
-import {
+  CheckParticipant,
   Thread,
   ThreadCreateData,
   ThreadJoinData,
-  ThreadUpdateData,
+  isUserParticipant,
 } from "@/types/Thread";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
-import { ReactNode, useCallback, useMemo, useReducer } from "react";
+import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
-/**
- * Thread state type for reducer
- */
-interface ThreadReducerState extends ThreadState {
-  threads: Thread[];
-  currentThread?: Thread | null;
+type ThreadReducerState = {
+  thread?: Thread | null;
   isLoading: boolean;
   error: string | null;
   isCurrentUserParticipant: boolean;
-}
+};
 
-/**
- * Thread action types for reducer
- */
 type ThreadAction =
   | { type: "THREAD_START" }
   | { type: "THREAD_SUCCESS"; payload: Thread }
@@ -37,20 +27,13 @@ type ThreadAction =
   | { type: "SET_CURRENT_USER_PARTICIPANT"; payload: boolean }
   | { type: "SET_CURRENT_THREAD"; payload: Thread | null };
 
-/**
- * Initial thread state
- */
 const initialState: ThreadReducerState = {
-  threads: [],
-  currentThread: null,
+  thread: null,
   isLoading: false,
   error: null,
   isCurrentUserParticipant: false,
 };
 
-/**
- * Reducer function for thread state management
- */
 function threadReducer(
   state: ThreadReducerState,
   action: ThreadAction
@@ -62,25 +45,14 @@ function threadReducer(
       return {
         ...state,
         isLoading: false,
-        threads: state.threads.some((t) => t.id === action.payload.id)
-          ? state.threads.map((t) =>
-              t.id === action.payload.id ? action.payload : t
-            )
-          : [...state.threads, action.payload],
-        currentThread: action.payload,
+        thread: action.payload,
         error: null,
       };
     case "THREAD_UPDATE":
       return {
         ...state,
         isLoading: false,
-        threads: state.threads.map((t) =>
-          t.id === action.payload.id ? action.payload : t
-        ),
-        currentThread:
-          state.currentThread?.id === action.payload.id
-            ? action.payload
-            : state.currentThread,
+        thread: action.payload,
         error: null,
       };
     case "THREAD_ERROR":
@@ -92,217 +64,252 @@ function threadReducer(
     case "SET_CURRENT_USER_PARTICIPANT":
       return { ...state, isCurrentUserParticipant: action.payload };
     case "SET_CURRENT_THREAD":
-      return { ...state, currentThread: action.payload };
+      return { ...state, thread: action.payload, isLoading: false };
     default:
       return state;
   }
 }
 
-interface ThreadProviderProps {
-  children: ReactNode;
-}
-
-export function ThreadProvider({ children }: ThreadProviderProps) {
+export function ThreadProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(threadReducer, initialState);
 
-  /**
-   * Handle API results and extract data or error
-   */
-  const handleApiResult = useCallback(
-    <T,>(result: ThreadResult<T>, errorMessage: string): T | null => {
-      if (!result.success) {
-        const message = result.error || errorMessage;
-        dispatch({ type: "THREAD_ERROR", payload: message });
-        showDialogError("Error", message);
-        return null;
-      }
-      return result.data;
-    },
-    []
-  );
+  const handleError = useCallback((error: unknown, customMessage?: string) => {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected thread error occurred";
 
-  /**
-   * Check if current user is a participant in the thread
-   * This is crucial for determining if a user can send messages
-   */
+    dispatch({ type: "THREAD_ERROR", payload: errorMessage });
+    showDialogError("Thread Error", errorMessage);
+  }, []);
+
+  const setCurrentThread = useCallback((thread: Thread | null) => {
+    dispatch({ type: "SET_CURRENT_THREAD", payload: thread });
+  }, []);
+
+  const setParticipant = useCallback((isParticipant: boolean) => {
+    dispatch({ type: "SET_CURRENT_USER_PARTICIPANT", payload: isParticipant });
+  }, []);
+
   const checkCurrentUserParticipation = useCallback(
-    (thread?: Thread | null, currentUserId?: string) => {
-      console.log("thread:", thread);
-      console.log("currentUserId:", currentUserId);
-
-      if (!thread || !currentUserId) {
-        dispatch({ type: "SET_CURRENT_USER_PARTICIPANT", payload: false });
+    (payload: CheckParticipant): boolean => {
+      // Validate input parameters
+      if (!payload.thread || !payload.currentUserID) {
+        setParticipant(false);
         return false;
       }
 
-      // Check if user is in the participants list
-      if (thread.discussion_participants.length === 0) {
-        dispatch({ type: "SET_CURRENT_USER_PARTICIPANT", payload: false });
-        return false;
-      }
+      // Use utility function for safe participant checking
+      const isParticipant = isUserParticipant(payload);
 
-      const isParticipant = thread.discussion_participants.some(
-        (participant) => participant.user_id === currentUserId
-      );
+      // Fallback to creator check
+      const isCreator = payload.thread.creator.id === payload.currentUserID;
 
-      // Update state with participation status
-      dispatch({
-        type: "SET_CURRENT_USER_PARTICIPANT",
-        payload: isParticipant,
-      });
+      // Determine final participation status
+      const finalParticipationStatus = isParticipant || isCreator;
 
-      console.log(
-        `User ${currentUserId} participation status for thread ${thread.id}: ${isParticipant}`
-      );
-
-      return isParticipant;
+      // Update context state
+      setParticipant(finalParticipationStatus);
+      return finalParticipationStatus;
     },
-    []
+    [setParticipant]
   );
 
-  /**
-   * Get thread by event ID
-   */
-  const getThreadByEventId = useCallback(
+  const fetchThreadByEventId = useCallback(
     async (eventId: string, currentUserId?: string): Promise<Thread | null> => {
       dispatch({ type: "THREAD_START" });
 
-      const result = await ThreadService.getThreadByEventId(eventId);
+      try {
+        const result = await ThreadService.getThreadByEventId(eventId);
 
-      // Thread not found but API call was successful
-      if (result.success && !result.data) {
-        console.log(`No thread found for event ${eventId}`);
-        // Reset state since no thread exists
-        dispatch({ type: "SET_CURRENT_THREAD", payload: null });
+        // Handle no thread scenario
+        if (!result.success) {
+          const errorMessage =
+            result.message || "Failed to get thread for event";
+          dispatch({ type: "THREAD_ERROR", payload: errorMessage });
+          showDialogError("Error", errorMessage);
+          setCurrentThread(null);
+          return null;
+        }
+
+        // Handle empty thread data
+        if (!result.data) {
+          setCurrentThread(null);
+          return null;
+        }
+        
+        if (!result.data.id || !result.data.event_id) {
+          dispatch({
+            type: "THREAD_ERROR",
+            payload: "Invalid thread data received",
+          });
+          showDialogError("Error", "Invalid thread data");
+          return null;
+        }
+        
+        // Dispatch thread success and check participation
+        dispatch({ type: "THREAD_SUCCESS", payload: result.data });
+
+        if (currentUserId) {
+          checkCurrentUserParticipation({
+            thread: result.data,
+            currentUserID: currentUserId,
+          });
+        }
+
+        return result.data;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Unknown error occurred while fetching thread";
+
+        dispatch({
+          type: "THREAD_ERROR",
+          payload: errorMessage,
+        });
+
+        showDialogError("Error", errorMessage);
         return null;
       }
-
-      // Process API result
-      const thread = handleApiResult(result, "Failed to get thread for event");
-
-      if (thread) {
-        console.log(`Thread found for event ${eventId}: ${thread.id}`);
-        // Set thread in state
-        dispatch({ type: "THREAD_SUCCESS", payload: thread });
-
-        // Check and update user participation status
-        if (currentUserId) {
-          checkCurrentUserParticipation(thread, currentUserId);
-        }
-      }
-
-      return thread;
     },
-    [handleApiResult, checkCurrentUserParticipation]
+    [checkCurrentUserParticipation, setCurrentThread]
   );
 
-  /**
-   * Create event thread
-   */
   const createEventThread = useCallback(
-    async (threadData: ThreadCreateData): Promise<boolean> => {
+    async (threadData: ThreadCreateData): Promise<Thread | null> => {
       dispatch({ type: "THREAD_START" });
 
-      const result = await ThreadService.createEventThread(threadData);
-      handleApiResult(result, "Failed to create thread");
+      try {
+        const result = await ThreadService.createEventThread(threadData);
 
-      if (result.success) {
-        console.log(
-          `Thread created for event ${threadData.event_id}: ${result.data?.id}`
-        );
+        // Handle creation failure
+        if (!result.success) {
+          const errorMessage = result.message || "Failed to create thread";
+          dispatch({ type: "THREAD_ERROR", payload: errorMessage });
+          showDialogError("Error", errorMessage);
+          return null;
+        }
 
+        // Validate thread data
+        const thread = result.data as Thread;
+        if (!thread || !thread.id || !thread.event_id) {
+          dispatch({
+            type: "THREAD_ERROR",
+            payload: "Invalid thread data received after creation",
+          });
+          showDialogError("Error", "Invalid thread data");
+          return null;
+        }
+
+        // Dispatch thread success
+        dispatch({ type: "THREAD_SUCCESS", payload: thread });
         showDialogSuccess("Success", "Discussion thread created successfully");
-      }
 
-      return result.success;
+        return thread;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Unknown error occurred while creating thread";
+
+        dispatch({
+          type: "THREAD_ERROR",
+          payload: errorMessage,
+        });
+
+        showDialogError("Error", errorMessage);
+        return null;
+      }
     },
-    [handleApiResult]
+    []
   );
 
-  /**
-   * Join event thread
-   */
   const joinEventThread = useCallback(
     async (joinData: ThreadJoinData): Promise<boolean> => {
-      dispatch({ type: "THREAD_START" });
-
-      const result = await ThreadService.joinEventThread(joinData);
-      handleApiResult(result, "Failed to join thread");
-
-      if (result.success) {
-        console.log(`Joined thread ${joinData.thread_id} successfully`);
-        dispatch({ type: "SET_CURRENT_USER_PARTICIPANT", payload: true });
-        showDialogSuccess("Success", "Joined discussion successfully");
+      // Validate input parameters
+      if (!joinData.thread_id || !joinData.event_id) {
+        dispatch({
+          type: "THREAD_ERROR",
+          payload: "Invalid join data: Thread ID and Event ID are required",
+        });
+        showDialogError("Error", "Invalid join data");
+        return false;
       }
 
-      return result.success;
-    },
-    [handleApiResult]
-  );
-
-  /**
-   * Update thread
-   */
-  const updateThread = useCallback(
-    async (
-      threadId: string,
-      threadData: ThreadUpdateData
-    ): Promise<boolean> => {
       dispatch({ type: "THREAD_START" });
 
-      const result = await ThreadService.updateThread(threadId, threadData);
-      handleApiResult(result, "Failed to update thread");
+      try {
+        const result = await ThreadService.joinEventThread(joinData);
 
-      if (result.success) {
-        dispatch({ type: "THREAD_UPDATE", payload: result.data as Thread });
-        showDialogSuccess("Success", "Thread updated successfully");
+        // Comprehensive result validation
+        if (!result.success) {
+          const errorMessage = result.message || "Failed to join event thread";
+          dispatch({ type: "THREAD_ERROR", payload: errorMessage });
+          showDialogError("Error", errorMessage);
+          return false;
+        }
+
+        // Show success dialog
+        showDialogSuccess("Success", "Successfully joined the thread");
+
+        return true;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Unknown error occurred while joining thread";
+
+        dispatch({
+          type: "THREAD_ERROR",
+          payload: errorMessage,
+        });
+
+        showDialogError("Error", errorMessage);
+        return false;
       }
-
-      return result.success;
     },
-    [handleApiResult]
+    []
   );
 
-  /**
-   * Clear error state
-   */
   const clearError = useCallback(() => {
     dispatch({ type: "THREAD_CLEAR_ERROR" });
   }, []);
 
-  /**
-   * Context value
-   */
-  const value = useMemo(
-    (): ThreadContextType => ({
-      threads: state.threads,
-      currentThread: state.currentThread,
+  const resetThreadState = useCallback(() => {
+    dispatch({ type: "THREAD_RESET" });
+  }, []);
+
+  const contextValue = useMemo<ThreadContextType>(
+    () => ({
+      thread: state.thread,
       isLoading: state.isLoading,
       error: state.error,
       isCurrentUserParticipant: state.isCurrentUserParticipant,
-      getThreadByEventId,
+      fetchThreadByEventId,
+      checkCurrentUserParticipation,
       createEventThread,
       joinEventThread,
-      updateThread,
       clearError,
-      checkCurrentUserParticipation,
+      resetThreadState,
     }),
     [
-      state.threads,
-      state.currentThread,
+      state.thread,
       state.isLoading,
       state.error,
       state.isCurrentUserParticipant,
-      getThreadByEventId,
+      fetchThreadByEventId,
+      checkCurrentUserParticipation,
       createEventThread,
       joinEventThread,
-      updateThread,
       clearError,
-      checkCurrentUserParticipation,
+      resetThreadState,
     ]
   );
 
   return (
-    <ThreadContext.Provider value={value}>{children}</ThreadContext.Provider>
+    <ThreadContext.Provider value={contextValue}>
+      {children}
+    </ThreadContext.Provider>
   );
 }

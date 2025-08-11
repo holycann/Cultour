@@ -1,23 +1,48 @@
-import { City } from "@/types/City";
+import { Pagination, Sorting } from "@/types/ApiResponse";
+import { City, CityOptions } from "@/types/City";
 import { createContext } from "react";
 
 /**
- * City context type definition
+ * City context type definition with enhanced methods and error handling
  */
 export interface CityContextType {
+  homePageCities: City[];
+  recommendedCities: City[];
   cities: City[];
+  allCities: City[];
   isLoading: boolean;
+  error: string | null;
+  pagination?: Pagination;
+  currentPage: number;
+  totalPages?: number;
+  hasMoreCities: boolean;
+
+  // City Fetching Methods
   fetchCities: (options?: {
-    limit?: number;
-    offset?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-    provinceId?: string;
-  }) => Promise<void>;
+    cityOptions?: CityOptions;
+    pagination?: Pagination;
+    sorting?: Sorting;
+    listType?: "home" | "recommended" | "default" | "all";
+  }) => Promise<City[] | null>;
+
+  searchCities: (
+    query: string,
+    options?: {
+      cityOptions?: CityOptions;
+      pagination?: Pagination;
+      sorting?: Sorting;
+      append?: boolean;
+      listType?: "home" | "recommended" | "default" | "all";
+    }
+  ) => Promise<City[] | null>;
+
+  // City Lookup Methods
   fetchCityById: (cityId: string) => Promise<City | null>;
   getCityById: (cityId: string) => City | undefined;
+
+  // State Management Methods
   clearError: () => void;
-  error: string | null;
+  resetCityState: () => void;
 }
 
 /**

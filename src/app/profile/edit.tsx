@@ -11,7 +11,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -45,9 +45,9 @@ export default function EditProfileScreen() {
 
       try {
         const success = await uploadAvatar({
-          uri: selectedImage.uri,
-          type: selectedImage.type,
-          name: selectedImage.fileName || "avatar.jpg",
+          id: profile?.id || "",
+          image: selectedImage,
+          avatar_url: profile?.avatar_url || null,
         });
 
         if (success) {
@@ -62,6 +62,7 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     try {
       await updateProfile({
+        id: profile?.id || "",
         fullname: fullname || "",
         bio: bio || "",
       });
@@ -89,7 +90,6 @@ export default function EditProfileScreen() {
       edges={["top", "left", "right"]}
       className="flex-1 bg-[#EEC887]"
     >
-
       {/* Custom Header */}
       <DetailHeader title="Edit Profile" showBackButton={true} />
 

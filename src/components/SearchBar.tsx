@@ -5,8 +5,10 @@ import { debounce } from "@/utils/debounce";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
+  Modal,
   StyleSheet,
   Text,
   TextInput,
@@ -18,12 +20,30 @@ type SearchBarProps = {
   placeholder?: string;
 };
 
+// Helper function to convert error to string
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return "An unexpected error occurred during search";
+};
+
 export default function SearchBar({
   placeholder = "Search events, cities, places...",
 }: SearchBarProps) {
   const [query, setQuery] = useState("");
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const { searchResults, performSearch, isSearching, error, clearSearch } =
     useSearch();
+
+  // Handle error display
+  useEffect(() => {
+    if (error) {
+      const errorStr = getErrorMessage(error);
+      setErrorMessage(errorStr);
+      setShowErrorModal(true);
+    }
+  }, [error]);
 
   // Debounced search function to reduce unnecessary API calls
   const debouncedSearch = useCallback(
@@ -31,8 +51,9 @@ export default function SearchBar({
       if (searchQuery.length >= 2) {
         performSearch({
           query: searchQuery,
-          limit: 5,
-          types: ["event", "city", "province", "location"],
+          types: ["event", "place"],
+        }, {
+          pagination: { per_page: 5 }
         });
       } else {
         clearSearch();
@@ -54,16 +75,10 @@ export default function SearchBar({
   const handleResultPress = (result: SearchResult) => {
     switch (result.type) {
       case "event":
-        router.push(`/event/${result.data.id}`);
+        router.push(`/event/${(result.data as any).id}`);
         break;
-      case "city":
-        router.push(`/place/${result.data.id}`);
-        break;
-      case "province":
-        router.push(`/place/${result.data.id}`);
-        break;
-      case "location":
-        router.push(`/place/${result.data.id}`);
+      case "place":
+        router.push(`/place/${(result.data as any).id}`);
         break;
     }
     clearSearch();
@@ -75,11 +90,7 @@ export default function SearchBar({
       switch (item.type) {
         case "event":
           return (item.data as any).name;
-        case "city":
-          return (item.data as any).name;
-        case "province":
-          return (item.data as any).name;
-        case "location":
+        case "place":
           return (item.data as any).name;
         default:
           return "Unknown";
@@ -99,6 +110,27 @@ export default function SearchBar({
 
   return (
     <View style={styles.container}>
+      {/* Error Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showErrorModal}
+        onRequestClose={() => setShowErrorModal(false)}
+      >
+        <View style={styles.errorModalContainer}>
+          <View style={styles.errorModalContent}>
+            <Text style={styles.errorModalTitle}>Search Error</Text>
+            <Text style={styles.errorModalMessage}>{errorMessage}</Text>
+            <TouchableOpacity 
+              style={styles.errorModalButton}
+              onPress={() => setShowErrorModal(false)}
+            >
+              <Text style={styles.errorModalButtonText}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <TouchableOpacity
         style={styles.iconContainer}
         onPress={() => router.replace("/(tabs)")}
@@ -118,6 +150,13 @@ export default function SearchBar({
           onChangeText={setQuery}
           clearButtonMode="while-editing"
         />
+        {isSearching && (
+          <ActivityIndicator 
+            size="small" 
+            color={Colors.primary} 
+            style={styles.searchingIndicator} 
+          />
+        )}
       </View>
 
       {query.length >= 2 && searchResults.length > 0 && (
@@ -164,6 +203,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.black,
   },
+  searchingIndicator: {
+    marginLeft: 10,
+  },
   resultsContainer: {
     position: "absolute",
     top: 65,
@@ -199,4 +241,47 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
     textTransform: "capitalize",
   },
+  // Error Modal Styles
+  errorModalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  errorModalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  errorModalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Colors.error || "red",
+    marginBottom: 15,
+  },
+  errorModalMessage: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  errorModalButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    padding: 10,
+    elevation: 2
+  },
+  errorModalButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center"
+  }
 });

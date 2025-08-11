@@ -14,7 +14,6 @@ export default function Header({
   title = 'Search events, cities, places...',
   showSearch = true,
   hidden = false,
-  onSearch
 }: HeaderProps) {
   if (hidden) {
     return null;
@@ -25,7 +24,6 @@ export default function Header({
       {showSearch && (
         <SearchBar 
           placeholder={title} 
-          onSearch={onSearch} 
         />
       )}
     </View>

@@ -52,6 +52,9 @@ export const validate = (
   return errors;
 };
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phoneRegex = /^(\+62|62|0)8[1-9][0-9]{6,10}$/;
+
 /**
  * Common reusable validators
  */
@@ -72,31 +75,44 @@ export const validators = {
    * Email format validator
    */
   email: (message = "Please enter a valid email address"): ValidationRule => ({
-    validator: (value: any) =>
-      !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+    validator: (value: any) => !value || emailRegex.test(value),
     message,
   }),
 
   /**
    * Minimum length validator
    */
-  minLength: (
-    length: number,
-    message = `Must be at least ${length} characters`
-  ): ValidationRule => ({
-    validator: (value: any) => !value || value.length >= length,
-    message,
+  min: (length: number, message?: string): ValidationRule => ({
+    validator: (value: any) => !value || String(value).length >= length,
+    message: message || `Must be at least ${length} characters`,
   }),
 
   /**
    * Maximum length validator
    */
-  maxLength: (
-    length: number,
-    message = `Must be at most ${length} characters`
-  ): ValidationRule => ({
-    validator: (value: any) => !value || value.length <= length,
-    message,
+  max: (length: number, message?: string): ValidationRule => ({
+    validator: (value: any) => !value || String(value).length <= length,
+    message: message || `Must be at most ${length} characters`,
+  }),
+
+  /**
+   * Password format validator
+   */
+  password: (message?: string): ValidationRule => ({
+    validator: (value: any) => {
+      if (!value) return true;
+      const hasMinLength = String(value).length >= 8;
+      const hasUppercase = /[A-Z]/.test(value);
+      const hasLowercase = /[a-z]/.test(value);
+      const hasNumber = /\d/.test(value);
+      const hasSpecial = /[^\w\s]/.test(value);
+      return (
+        hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial
+      );
+    },
+    message:
+      message ||
+      "Password must be at least 8 chars and include upper, lower, number, and special character",
   }),
 
   /**
@@ -155,8 +171,7 @@ export const isComplete = (
  * @param email The email address to validate
  * @returns True if the email format is valid, false otherwise
  */
-export const validateEmail = (email: string): boolean =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+export const validateEmail = (email: string): boolean => emailRegex.test(email);
 
 /**
  * Validates a password meets minimum requirements
@@ -177,3 +192,10 @@ export const validatePassword = (
 export function validateName(name: string): boolean {
   return name.trim().length >= 2;
 }
+
+/**
+ * Validates a phone number format
+ * @param phone The phone number to validate
+ * @returns True if the phone number format is valid, false otherwise
+ */
+export const validatePhone = (phone: string): boolean => phoneRegex.test(phone);

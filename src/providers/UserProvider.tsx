@@ -1,7 +1,12 @@
-import { UserContext } from "@/contexts/UserContext";
+import { UserContext, UserContextType } from "@/contexts/UserContext";
 import { UserService } from "@/services/userService";
-import { parseError } from "@/types/AppError";
-import { User, UserProfile } from "@/types/User";
+import { User } from "@/types/User";
+import {
+  UpdateAvatar,
+  UpdateIdentity,
+  UserProfile,
+  UserProfilePayload,
+} from "@/types/UserProfile";
 import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 
@@ -20,13 +25,13 @@ interface UserState {
  */
 type UserAction =
   | { type: "USER_START" }
-  | {
-      type: "USER_SUCCESS";
-      payload: { user: User | null; profile: UserProfile | null };
-    }
+  | { type: "PROFILE_SUCCESS"; payload: UserProfile }
+  | { type: "USER_SUCCESS"; payload: User }
   | { type: "USER_ERROR"; payload: string }
+  | { type: "USER_RESET" }
   | { type: "USER_CLEAR_ERROR" }
-  | { type: "USER_RESET" };
+  | { type: "AVATAR_UPDATE"; payload: string }
+  | { type: "PROFILE_UPDATE"; payload: Partial<UserProfile> };
 
 /**
  * Initial user state
@@ -45,38 +50,62 @@ function userReducer(state: UserState, action: UserAction): UserState {
   switch (action.type) {
     case "USER_START":
       return { ...state, isLoading: true, error: null };
+    case "PROFILE_SUCCESS":
+      return {
+        ...state,
+        profile: action.payload,
+        isLoading: false,
+        error: null,
+      };
     case "USER_SUCCESS":
       return {
         ...state,
+        user: action.payload,
         isLoading: false,
-        user: action.payload.user,
-        profile: action.payload.profile,
         error: null,
       };
     case "USER_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "USER_CLEAR_ERROR":
-      return { ...state, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        error: action.payload,
+      };
     case "USER_RESET":
       return initialState;
+    case "USER_CLEAR_ERROR":
+      return { ...state, error: null };
+    case "AVATAR_UPDATE":
+      return {
+        ...state,
+        profile: state.profile
+          ? { ...state.profile, avatar_url: action.payload }
+          : null,
+        isLoading: false,
+        error: null,
+      };
+    case "PROFILE_UPDATE":
+      return {
+        ...state,
+        profile: state.profile ? { ...state.profile, ...action.payload } : null,
+        isLoading: false,
+        error: null,
+      };
     default:
       return state;
   }
 }
 
-interface UserProviderProps {
-  children: ReactNode;
-}
-
-export function UserProvider({ children }: UserProviderProps) {
+export function UserProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(userReducer, initialState);
 
   /**
    * Handle any API errors
    */
   const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const appError = parseError(error);
-    const errorMessage = customMessage || appError.message;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : customMessage || "An unexpected error occurred";
 
     dispatch({ type: "USER_ERROR", payload: errorMessage });
     showDialogError("Error", errorMessage);
@@ -85,195 +114,129 @@ export function UserProvider({ children }: UserProviderProps) {
   /**
    * Fetch user profile
    */
-  const fetchUserProfile = useCallback(
-    async (userId: string) => {
-      dispatch({ type: "USER_START" });
+  const fetchUserProfile = useCallback(async () => {
+    dispatch({ type: "USER_START" });
+    try {
+      const profile = await UserService.getUserProfile();
 
-      try {
-        // Fetch user details
-        const userData = await UserService.getUser(userId);
-
-        // Fetch user profile
-        const profileData = await UserService.getUserProfile();
-
+      if (profile) {
         dispatch({
-          type: "USER_SUCCESS",
-          payload: {
-            user: userData,
-            profile: profileData,
-          },
+          type: "PROFILE_SUCCESS",
+          payload: profile,
         });
+      }
+      return profile;
+    } catch (error) {
+      handleError(error, "Gagal mengambil profil pengguna");
+      return null;
+    }
+  }, [handleError]);
+
+  /**
+   * Create user profile
+   */
+  const createUserProfile = useCallback(
+    async (userProfileData: UserProfilePayload) => {
+      dispatch({ type: "USER_START" });
+      try {
+        const profile = await UserService.createUserProfile(userProfileData);
+
+        if (profile) {
+          dispatch({
+            type: "PROFILE_SUCCESS",
+            payload: profile,
+          });
+          showDialogSuccess("Berhasil", "Profil pengguna berhasil dibuat");
+        }
+        return profile;
       } catch (error) {
-        handleError(error, "Gagal mengambil profil pengguna");
+        handleError(error, "Gagal membuat profil pengguna");
+        return null;
       }
     },
     [handleError]
   );
 
   /**
-   * Create user profile
-   */
-  const createUserProfile = useCallback(
-    async (userProfileData: Partial<UserProfile>) => {
-      dispatch({ type: "USER_START" });
-
-      try {
-        const createdProfile = await UserService.createUserProfile(userProfileData);
-
-        if (createdProfile) {
-          dispatch({
-            type: "USER_SUCCESS",
-            payload: {
-              user: state.user,
-              profile: createdProfile,
-            },
-          });
-
-          showDialogSuccess("Berhasil", "Profil pengguna berhasil dibuat");
-          return true;
-        }
-
-        return false;
-      } catch (error) {
-        handleError(error, "Gagal membuat profil pengguna");
-        return false;
-      }
-    },
-    [state.user, handleError]
-  );
-
-  /**
    * Update user profile
    */
   const updateProfile = useCallback(
-    async (profileData: Partial<UserProfile>) => {
+    async (profileData: UserProfilePayload) => {
       dispatch({ type: "USER_START" });
-
       try {
-        if (!state.user?.id || !state.profile?.id) {
-          throw new Error("Pengguna tidak terautentikasi");
+        const updatedProfile = await UserService.updateProfile(profileData);
+
+        if (updatedProfile) {
+          // Use the new PROFILE_UPDATE action for partial updates
+          dispatch({
+            type: "PROFILE_UPDATE",
+            payload: updatedProfile as Partial<UserProfile>,
+          });
+          showDialogSuccess("Berhasil", "Profil berhasil diperbarui");
         }
-
-        // Kirim hanya field yang dibolehkan
-        const payload = {
-          user_id: state.user.id,
-          fullname: profileData.fullname || state.profile.fullname,
-          bio: profileData.bio ?? state.profile.bio,
-          avatar_url: profileData.avatar_url ?? state.profile.avatar_url,
-        };
-
-        await UserService.updateProfile(
-          state.profile.id,
-          payload as UserProfile
-        );
-
-        await fetchUserProfile(state.user.id);
-
-        showDialogSuccess("Berhasil", "Profil berhasil diperbarui");
-        return true;
+        return updatedProfile;
       } catch (error) {
         handleError(error, "Gagal memperbarui profil");
-        return false;
+        return null;
       }
     },
-    [state.user, state.profile, handleError, fetchUserProfile]
-  );
-
-  /**
-   * Update user
-   */
-  const updateUser = useCallback(
-    async (userData: Partial<User>) => {
-      dispatch({ type: "USER_START" });
-
-      try {
-        // Ensure we have a user_id
-        if (!state.user?.id) {
-          throw new Error("Pengguna tidak terautentikasi");
-        }
-
-        const updatedUser = await UserService.updateUser(
-          state.user.id,
-          userData
-        );
-
-        // Optimistically update local state
-        dispatch({
-          type: "USER_SUCCESS",
-          payload: {
-            user: { ...state.user, ...updatedUser } as User,
-            profile: state.profile,
-          },
-        });
-
-        showDialogSuccess("Berhasil", "Data pengguna berhasil diperbarui");
-        return true;
-      } catch (error) {
-        handleError(error, "Gagal memperbarui data pengguna");
-        return false;
-      }
-    },
-    [state.user, handleError]
+    [handleError]
   );
 
   /**
    * Upload avatar
    */
   const uploadAvatar = useCallback(
-    async (
-      avatarFile: File | { uri: string; type?: string; name?: string }
-    ) => {
+    async (payload: UpdateAvatar) => {
       dispatch({ type: "USER_START" });
-
       try {
-        // Ensure we have a user_id and profile_id
-        if (!state.user?.id || !state.profile?.id) {
-          throw new Error("Pengguna tidak terautentikasi");
+        const avatarUrl = await UserService.uploadAvatar(payload);
+
+        if (avatarUrl) {
+          showDialogSuccess("Berhasil", "Avatar berhasil diunggah");
+          // Use the new AVATAR_UPDATE action instead of manually constructing state
+          dispatch({
+            type: "AVATAR_UPDATE",
+            payload: avatarUrl,
+          });
         }
-
-        await UserService.uploadAvatar(state.profile.id, avatarFile);
-
-        // Refetch profile dari backend agar avatar dan data lain sinkron
-        await fetchUserProfile(state.user.id);
-
-        showDialogSuccess("Berhasil", "Avatar berhasil diperbarui");
-        return true;
+        return avatarUrl;
       } catch (error) {
         handleError(error, "Gagal mengunggah avatar");
-        return false;
+        return null;
       }
     },
-    [state.user, state.profile, handleError, fetchUserProfile]
+    [handleError]
   );
 
   /**
    * Upload identity
    */
   const uploadIdentity = useCallback(
-    async (
-      identityFile: File | { uri: string; type?: string; name?: string }
-    ) => {
+    async (payload: UpdateIdentity) => {
       dispatch({ type: "USER_START" });
-
       try {
-        // Ensure we have a user_id and profile_id
-        if (!state.user?.id || !state.profile?.id) {
-          throw new Error("Pengguna tidak terautentikasi");
+        const identityUrl = await UserService.verifyIdentity(payload);
+
+        if (identityUrl) {
+          showDialogSuccess("Berhasil", "Identitas berhasil diunggah");
+          // If identity verification affects profile, update it
+          if (state.profile) {
+            dispatch({
+              type: "PROFILE_UPDATE",
+              payload: {
+                identity_image_url: identityUrl,
+              },
+            });
+          }
         }
-
-        await UserService.verifyIdentity(state.profile.id, identityFile);
-
-        // Refetch profile dari backend agar avatar dan data lain sinkron
-        await fetchUserProfile(state.user.id);
-
-        showDialogSuccess("Berhasil", "Identity berhasil diperbarui");
-        return true;
+        return identityUrl;
       } catch (error) {
-        handleError(error, "Gagal mengunggah identity");
-        return false;
+        handleError(error, "Gagal mengunggah identitas");
+        return null;
       }
     },
-    [state.user, state.profile, handleError, fetchUserProfile]
+    [handleError, state.profile]
   );
 
   /**
@@ -283,10 +246,11 @@ export function UserProvider({ children }: UserProviderProps) {
     dispatch({ type: "USER_CLEAR_ERROR" });
   }, []);
 
-  /**
-   * Context value
-   */
-  const value = useMemo(
+  const resetUserState = useCallback(() => {
+    dispatch({ type: "USER_RESET" });
+  }, []);
+
+  const contextValue = useMemo<UserContextType>(
     () => ({
       user: state.user,
       profile: state.profile,
@@ -295,10 +259,10 @@ export function UserProvider({ children }: UserProviderProps) {
       fetchUserProfile,
       createUserProfile,
       updateProfile,
-      updateUser,
       uploadAvatar,
       uploadIdentity,
       clearError,
+      resetUserState,
     }),
     [
       state.user,
@@ -308,12 +272,14 @@ export function UserProvider({ children }: UserProviderProps) {
       fetchUserProfile,
       createUserProfile,
       updateProfile,
-      updateUser,
       uploadAvatar,
       uploadIdentity,
       clearError,
+      resetUserState,
     ]
   );
 
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+  return (
+    <UserContext.Provider value={contextValue}>{children}</UserContext.Provider>
+  );
 }

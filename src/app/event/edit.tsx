@@ -26,6 +26,7 @@ import React, { useEffect, useState } from "react";
 import { Dropdown } from "react-native-element-dropdown";
 
 import Colors from "@/constants/Colors";
+import { useAi } from "@/hooks/useAi";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function EditEventScreen() {
@@ -35,8 +36,9 @@ export default function EditEventScreen() {
   const { user } = useAuth();
 
   const { event, getEventById, updateEvent } = useEvent();
-  const { provinces, fetchProvinces } = useProvince();
-  const { cities, fetchCities } = useCity();
+  const { allProvinces, fetchProvinces } = useProvince();
+  const { allCities, fetchCities } = useCity();
+  const { generateEventDescription } = useAi();
 
   // State untuk event
   const [eventTitle, setEventTitle] = useState("");
@@ -56,6 +58,7 @@ export default function EditEventScreen() {
   const [isFullScreenMapVisible, setIsFullScreenMapVisible] = useState(false);
   const [provinceIsFocus, setProvinceIsFocus] = useState(false);
   const [cityIsFocus, setCityIsFocus] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   // Cek status autentikasi dan verifikasi
   useEffect(() => {
@@ -112,14 +115,12 @@ export default function EditEventScreen() {
           }
 
           // Set province and city
-          if (event?.province_id) {
-            const province = provinces.find((p) => p.id === event?.province_id);
-            setSelectedProvince(province?.name || "");
+          if (event?.location?.city?.province_id) {
+            setSelectedProvince(event?.location?.city?.province_id || "");
           }
 
-          if (event?.city_id) {
-            const city = cities.find((c) => c.id === event?.city_id);
-            setSelectedCity(city?.name || "");
+          if (event?.location?.city_id) {
+            setSelectedCity(event?.location?.city_id || "");
           }
 
           // Set image
@@ -158,17 +159,18 @@ export default function EditEventScreen() {
 
   // Fetch provinces and cities only once when the component first loads
   useEffect(() => {
-    if (provinces.length === 0) {
-      fetchProvinces();
-    }
-
-    if (cities.length === 0) {
-      fetchCities();
-    }
-  }, [provinces, cities]);
+    fetchProvinces({
+      pagination: { page: 1, per_page: 1000 },
+      listType: "all",
+    });
+    fetchCities({
+      pagination: { page: 1, per_page: 1000 },
+      listType: "all",
+    });
+  }, []);
 
   // Filter kota berdasarkan provinsi yang dipilih
-  const filteredCities = cities.filter(
+  const filteredCities = allCities.filter(
     (c) => c.province_id === selectedProvince
   );
 
@@ -234,6 +236,7 @@ export default function EditEventScreen() {
 
     try {
       const eventData = {
+        id: eventId,
         name: eventTitle,
         description: eventDescription,
         start_date: startDate.toISOString(),
@@ -242,16 +245,26 @@ export default function EditEventScreen() {
           name: selectedLocation.name || `${selectedCity}, ${selectedProvince}`,
           latitude: selectedLocation.latitude as number,
           longitude: selectedLocation.longitude as number,
+          city_id: selectedCity,
         },
         image:
-          image?.split("/").pop()?.split(".")[0] === event?.image_url?.split("/").pop()?.split(".")[0]
-            ? undefined
+          image?.split("/").pop()?.split(".")[0] ===
+          event?.image_url?.split("/").pop()?.split(".")[0]
+            ? [""]
             : [image],
-        city_id: selectedCity,
         province_id: selectedProvince,
+        location_id: event?.location?.id || "",
+        image_url: event?.image_url || "",
+        is_kid_friendly: event?.is_kid_friendly || false,
+        Location: event?.location || {
+          name: "",
+          latitude: 0,
+          longitude: 0,
+          city_id: "",
+        },
       };
 
-      const response = await updateEvent(eventId, eventData);
+      const response = await updateEvent(eventData);
 
       if (response) {
         Alert.alert("Sukses", "Event berhasil diperbarui");
@@ -305,15 +318,78 @@ export default function EditEventScreen() {
                   <Text className="mb-2 text-[#1E1E1E]">{label}</Text>
                   {label === "Event Description" && (
                     <TouchableOpacity
+                      onPress={() => {
+                        // Validate required fields for AI description generation
+                        const validations = [
+                          { value: eventTitle, message: "Event Title" },
+                          { value: selectedProvince, message: "Province" },
+                          { value: selectedCity, message: "City" },
+                          {
+                            value:
+                              selectedLocation.latitude &&
+                              selectedLocation.longitude,
+                            message: "Event Location",
+                          },
+                          {
+                            value: startDate && endDate,
+                            message: "Event Dates",
+                          },
+                        ];
+
+                        // Check field that are empty
+                        const emptyFields = validations
+                          .filter((validation) => !validation.value)
+                          .map((validation) => validation.message);
+
+                        if (emptyFields.length > 0) {
+                          Alert.alert(
+                            "Incomplete Information",
+                            `Please fill in the following fields before generating description:\n${emptyFields.join(", ")}`
+                          );
+                          return;
+                        }
+
+                        const generateAiDescription = async () => {
+                          try {
+                            setIsGeneratingDescription(true);
+                            const additionalContext = `Event will be held in ${allCities.find((c) => c.id === selectedCity)?.name || "selected city"}, ${allProvinces.find((p) => p.id === selectedProvince)?.name || "selected province"}. Event dates: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}. Location details: ${selectedLocation.name || "Specific location"}`;
+
+                            const response = await generateEventDescription({
+                              title: eventTitle,
+                              additional_context: additionalContext,
+                            });
+
+                            if (response?.description) {
+                              setEventDescription(response?.description);
+                              Alert.alert(
+                                "Success",
+                                "AI description generated successfully"
+                              );
+                            } else {
+                              Alert.alert(
+                                "Error",
+                                "Failed to generate description"
+                              );
+                            }
+                          } catch (error) {
+                            console.error(
+                              "AI Description Generation Error:",
+                              error
+                            );
+                            Alert.alert(
+                              "Error",
+                              "Failed to generate description"
+                            );
+                          } finally {
+                            setIsGeneratingDescription(false);
+                          }
+                        };
+
+                        generateAiDescription();
+                      }}
                       className="rounded-lg px-3 py-2 self-start mb-2 flex-row items-center"
                       style={{ backgroundColor: Colors.secondary }}
-                      onPress={() => {
-                        // TODO: Implement AI description generation
-                        Alert.alert(
-                          "Coming Soon",
-                          "AI description generation is not yet implemented"
-                        );
-                      }}
+                      disabled={isGeneratingDescription}
                     >
                       <Ionicons
                         name="sparkles"
@@ -321,7 +397,9 @@ export default function EditEventScreen() {
                         color="white"
                         className="mr-2"
                       />
-                      <Text className="text-white text-sm">Generate</Text>
+                      <Text className="text-white text-sm">
+                        {isGeneratingDescription ? "Generating..." : "Generate"}
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -352,7 +430,7 @@ export default function EditEventScreen() {
               selectedTextStyle={styles.selectedTextStyle}
               inputSearchStyle={styles.inputSearchStyle}
               iconStyle={styles.iconStyle}
-              data={provinces.map((p) => ({ label: p.name, value: p.id }))}
+              data={allProvinces.map((p) => ({ label: p.name, value: p.id }))}
               search
               maxHeight={300}
               labelField="label"
@@ -449,7 +527,7 @@ export default function EditEventScreen() {
               }
               initialCity={
                 selectedCity
-                  ? cities.find((city) => city.id === selectedCity)
+                  ? allCities.find((city) => city.id === selectedCity)
                   : undefined
               }
               onLocationSelect={(location) => {
