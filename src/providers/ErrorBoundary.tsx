@@ -3,6 +3,7 @@
  * Catches JavaScript errors in the component tree and displays a fallback UI
  */
 import Colors from "@/constants/Colors";
+import notify from "@/services/notificationService";
 import { AppError, ErrorCode } from "@/types/AppError";
 import { Ionicons } from "@expo/vector-icons";
 import React, { Component, ErrorInfo, ReactNode } from "react";
@@ -59,6 +60,11 @@ export class ErrorBoundary extends Component<Props, State> {
     // You can log the error to an error reporting service
     console.error("Error caught by ErrorBoundary:", error);
     console.error("Component stack:", errorInfo.componentStack);
+
+    // Send error notification
+    notify.error("Application Error", {
+      message: "An unexpected error occurred. Please try again.",
+    });
   }
 
   /**
@@ -68,6 +74,11 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({
       hasError: false,
       error: null,
+    });
+
+    // Notify user about reset
+    notify.info("Error Reset", { 
+      message: "Application state has been reset. Please continue." 
     });
   };
 

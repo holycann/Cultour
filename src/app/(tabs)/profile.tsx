@@ -1,21 +1,20 @@
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import Colors from "@/constants/Colors";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
-import { Ionicons } from "@expo/vector-icons";
+import notify from "@/services/notificationService";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
   RefreshControl,
   ScrollView,
   StatusBar,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ProfileHeader } from "./_components/ProfileHeader";
+import { ProfileMenuList } from "./_components/ProfileMenuList";
 
 export default function ProfileIndexScreen() {
   const router = useRouter();
@@ -39,12 +38,11 @@ export default function ProfileIndexScreen() {
 
   useEffect(() => {
     if (!user) {
-      Alert.alert("Error", "Please Login First For Access Your Profile", [
-        {
-          text: "OK",
-          onPress: () => router.replace("/auth/login"),
-        },
-      ]);
+      notify.dialog("Error", {
+        message: "Please Login First For Access Your Profile",
+        confirmText: "Go to Login",
+        onConfirm: () => router.replace("/auth/login"),
+      });
     } else {
       loadProfile();
     }
@@ -60,12 +58,7 @@ export default function ProfileIndexScreen() {
 
   if (isLoading || userLoading) {
     return (
-      <SafeAreaView
-        edges={["top", "left", "right"]}
-        className="flex-1 bg-[#F9EFE4] justify-center items-center"
-      >
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </SafeAreaView>
+      <LoadingScreen message="Loading profile..." backgroundColor="[#F9EFE4]" />
     );
   }
 
@@ -96,104 +89,10 @@ export default function ProfileIndexScreen() {
         }
       >
         {/* Avatar & Name */}
-        <View className="items-center mb-6">
-          <View className="w-32 h-32 rounded-full bg-[#E0E0E0] items-center justify-center mb-4">
-            <Image
-              source={
-                profile?.avatar_url
-                  ? { uri: profile.avatar_url }
-                  : require("@/assets/images/eksproler.png")
-              }
-              className="w-28 h-28 rounded-full"
-              resizeMode="cover"
-            />
-          </View>
-          <Text className="text-lg font-bold text-[#1E1E1E]">
-            {profile?.fullname || "Penjelajah"}
-          </Text>
-          <Text className="text-[#4E7D79] opacity-70">
-            {user?.email || "-"}
-          </Text>
-        </View>
+        <ProfileHeader profile={profile} user={user} />
 
         {/* Profile Menu List */}
-        <View className="mb-8">
-          {/* Edit Profile */}
-          <TouchableOpacity
-            onPress={() => router.push("/profile/edit")}
-            className="bg-white rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between"
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="person-outline" size={22} color="#4E7D79" />
-              <Text className="ml-4 text-[#4E7D79] font-semibold">
-                Edit Profile
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#4E7D79" />
-          </TouchableOpacity>
-
-          {/* Identity Verification */}
-          <TouchableOpacity
-            onPress={() => router.push("/profile/verify")}
-            className={`rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between ${
-              profile?.identity_image_url
-                ? "bg-white border-[#E0E0E0]"
-                : "bg-white border-[#FBCACA]"
-            }`}
-          >
-            <View className="flex-row items-center">
-              <Ionicons
-                name={
-                  profile?.identity_image_url
-                    ? "checkmark-circle"
-                    : "alert-circle"
-                }
-                size={22}
-                color={profile?.identity_image_url ? "#4E7D79" : "#D32F2F"}
-              />
-              <Text
-                className={`ml-4 font-semibold ${
-                  profile?.identity_image_url
-                    ? "text-[#4E7D79]"
-                    : "text-[#D32F2F]"
-                }`}
-              >
-                {profile?.identity_image_url
-                  ? "Identity Verified"
-                  : "Verify Identity"}
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={22}
-              color={profile?.identity_image_url ? "#4E7D79" : "#D32F2F"}
-            />
-          </TouchableOpacity>
-
-          {/* Badge */}
-          <TouchableOpacity
-            onPress={() => router.push("/profile/badge")}
-            className="bg-white rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between"
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="medal" size={22} color="#4E7D79" />
-              <Text className="ml-4 text-[#4E7D79] font-semibold">Badge</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#4E7D79" />
-          </TouchableOpacity>
-
-          {/* Logout */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            className="bg-white rounded-xl px-4 py-4 border-b border-black flex-row items-center justify-between"
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="log-out-outline" size={22} color="#D32F2F" />
-              <Text className="ml-4 text-[#D32F2F] font-semibold">Logout</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#D32F2F" />
-          </TouchableOpacity>
-        </View>
+        <ProfileMenuList profile={profile} onLogout={handleLogout} />
       </ScrollView>
     </SafeAreaView>
   );

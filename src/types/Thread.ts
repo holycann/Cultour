@@ -26,6 +26,7 @@ export interface ThreadCreateData {
 }
 
 export interface ThreadJoinData {
+  user_id: string;
   thread_id: string;
   event_id: string;
 }

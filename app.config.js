@@ -64,7 +64,19 @@ export default {
         {
           locationWhenInUsePermission: "Kami membutuhkan akses lokasi Anda untuk menampilkan peta dan fitur lokasi"
         }
-      ]
+      ],
+      ["expo-build-properties", {
+        android: {
+          enableProguardInReleaseBuilds: true,
+          packagingOptions: { pickFirst: [] },
+          extraProguardRules: "-dontnote okhttp3.**\n-dontnote okio.**",
+          compileSdkVersion: 35,
+          minSdkVersion: 24,
+          targetSdkVersion: 35,
+          enableShrinkResources: true,
+          abiSplit: true
+        }
+      }]
     ],
     extra: {
       router: {

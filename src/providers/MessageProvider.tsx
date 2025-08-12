@@ -1,13 +1,14 @@
 import { MessageContext, MessageContextType } from "@/contexts/MessageContext";
 import { MessageService } from "@/services/messageService";
+import notify from "@/services/notificationService";
 import { Pagination } from "@/types/ApiResponse";
 import {
   Message,
   SendDiscussionMessage,
   UpdateDiscussionMessage,
 } from "@/types/Message";
-import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
 type MessageState = {
   discussionMessages: Message[];
@@ -16,14 +17,10 @@ type MessageState = {
 };
 
 type MessageAction =
-  | { type: "MESSAGE_START" }
   | { type: "DISCUSSION_MESSAGES_SUCCESS"; payload: Message[] }
   | { type: "ADD_DISCUSSION_MESSAGE"; payload: Message }
   | { type: "UPDATE_DISCUSSION_MESSAGE"; payload: Message }
-  | { type: "DELETE_DISCUSSION_MESSAGE"; payload: string }
-  | { type: "MESSAGE_ERROR"; payload: string }
-  | { type: "MESSAGE_CLEAR_ERROR" }
-  | { type: "MESSAGE_RESET" };
+  | { type: "DELETE_DISCUSSION_MESSAGE"; payload: string };
 
 const initialState: MessageState = {
   discussionMessages: [],
@@ -31,13 +28,8 @@ const initialState: MessageState = {
   error: null,
 };
 
-function messageReducer(
-  state: MessageState,
-  action: MessageAction
-): MessageState {
+function domainReducer(state: MessageState, action: MessageAction): MessageState {
   switch (action.type) {
-    case "MESSAGE_START":
-      return { ...state, isLoading: true, error: null };
     case "DISCUSSION_MESSAGES_SUCCESS":
       return {
         ...state,
@@ -67,29 +59,25 @@ function messageReducer(
         ),
         isLoading: false,
       };
-    case "MESSAGE_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "MESSAGE_CLEAR_ERROR":
-      return { ...state, error: null, isLoading: false };
-    case "MESSAGE_RESET":
-      return { ...initialState, isLoading: false };
     default:
       return state;
   }
 }
 
+const reducer = withAsyncReducer<MessageState, MessageAction>(domainReducer as any, initialState);
+
 export function MessageProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(messageReducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : customMessage || "An unexpected message error occurred";
-
-    dispatch({ type: "MESSAGE_ERROR", payload: errorMessage });
-    showDialogError("Message Error", errorMessage);
-  }, []);
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage = error instanceof Error ? error.message : customMessage || "An unexpected message error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("Message Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
 
   const fetchThreadMessages = useCallback(
     async (
@@ -98,7 +86,7 @@ export function MessageProvider({ children }: { children: ReactNode }) {
         pagination?: Pagination;
       }
     ): Promise<Message[] | null> => {
-      dispatch({ type: "MESSAGE_START" });
+      asyncActions.start();
 
       try {
         const response = await MessageService.fetchMessagesByThread(threadId);
@@ -149,7 +137,7 @@ export function MessageProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      dispatch({ type: "MESSAGE_START" });
+      asyncActions.start();
 
       try {
         const message = await MessageService.sendDiscussionMessage(payload);
@@ -180,7 +168,7 @@ export function MessageProvider({ children }: { children: ReactNode }) {
 
   const updateDiscussionMessage = useCallback(
     async (payload: UpdateDiscussionMessage): Promise<Message | null> => {
-      dispatch({ type: "MESSAGE_START" });
+      asyncActions.start();
 
       try {
         const updatedMessage =
@@ -205,7 +193,7 @@ export function MessageProvider({ children }: { children: ReactNode }) {
 
   const deleteDiscussionMessage = useCallback(
     async (messageId: string): Promise<boolean> => {
-      dispatch({ type: "MESSAGE_START" });
+      asyncActions.start();
 
       try {
         const isDeleted =
@@ -226,12 +214,12 @@ export function MessageProvider({ children }: { children: ReactNode }) {
   );
 
   const clearError = useCallback(() => {
-    dispatch({ type: "MESSAGE_CLEAR_ERROR" });
-  }, []);
+    asyncActions.clearError();
+  }, [asyncActions]);
 
   const resetMessageState = useCallback(() => {
-    dispatch({ type: "MESSAGE_RESET" });
-  }, []);
+    asyncActions.reset();
+  }, [asyncActions]);
 
   const contextValue = useMemo<MessageContextType>(
     () => ({

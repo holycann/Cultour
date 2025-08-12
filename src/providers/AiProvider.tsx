@@ -1,4 +1,4 @@
-import { showDialogError } from "@/utils/alert";
+import notify from "@/services/notificationService";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
 import AiContext, { AiContextType } from "../contexts/AiContext";
 import { AiService } from "../services/aiService";
@@ -10,6 +10,7 @@ import {
   AiSession,
   AiSessionCreate,
 } from "../types/Ai";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
 type AiState = {
   messages: AiMessage[];
@@ -19,13 +20,9 @@ type AiState = {
 };
 
 type AiAction =
-  | { type: "AI_START" }
   | { type: "AI_SESSION_SUCCESS"; payload: AiSession }
   | { type: "SEND_MESSAGE"; payload: AiMessage }
-  | { type: "AI_MESSAGE_SUCCESS"; payload: AiMessage }
-  | { type: "AI_ERROR"; payload: string }
-  | { type: "AI_RESET" }
-  | { type: "AI_CLEAR_ERROR" };
+  | { type: "AI_MESSAGE_SUCCESS"; payload: AiMessage };
 
 const initialState: AiState = {
   messages: [],
@@ -34,10 +31,8 @@ const initialState: AiState = {
   error: null,
 };
 
-function aiReducer(state: AiState, action: AiAction): AiState {
+function domainReducer(state: AiState, action: AiAction): AiState {
   switch (action.type) {
-    case "AI_START":
-      return { ...state, isLoading: true, error: null };
     case "AI_SESSION_SUCCESS":
       return {
         ...state,
@@ -58,33 +53,29 @@ function aiReducer(state: AiState, action: AiAction): AiState {
         isLoading: false,
         error: null,
       };
-    case "AI_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "AI_RESET":
-      return initialState;
-    case "AI_CLEAR_ERROR":
-      return { ...state, error: null };
     default:
       return state;
   }
 }
 
+const reducer = withAsyncReducer<AiState, AiAction>(domainReducer as any, initialState);
+
 export function AiProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(aiReducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : customMessage || "An unexpected AI error occurred";
-
-    dispatch({ type: "AI_ERROR", payload: errorMessage });
-    showDialogError("AI Error", errorMessage);
-  }, []);
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage = error instanceof Error ? error.message : customMessage || "An unexpected AI error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("AI Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
 
   const createChatSession = useCallback(
     async (request: AiSessionCreate): Promise<AiSession | null> => {
-      dispatch({ type: "AI_START" });
+      asyncActions.start();
 
       try {
         if (!request.event_id) {
@@ -116,7 +107,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      dispatch({ type: "AI_START" });
+      asyncActions.start();
 
       try {
         const data: AiMessage = {
@@ -153,7 +144,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     async (
       payload: AiEventDescriptionPayload
     ): Promise<AiEventDescription | null> => {
-      dispatch({ type: "AI_START" });
+      asyncActions.start();
 
       try {
         const description = await AiService.generateEventDescription(payload);
@@ -167,12 +158,12 @@ export function AiProvider({ children }: { children: ReactNode }) {
   );
 
   const clearConversation = useCallback(() => {
-    dispatch({ type: "AI_RESET" });
-  }, []);
+    asyncActions.reset();
+  }, [asyncActions]);
 
   const clearError = useCallback(() => {
-    dispatch({ type: "AI_CLEAR_ERROR" });
-  }, []);
+    asyncActions.clearError();
+  }, [asyncActions]);
 
   const contextValue = useMemo<AiContextType>(
     () => ({
@@ -199,7 +190,5 @@ export function AiProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  return (
-    <AiContext.Provider value={contextValue}>{children}</AiContext.Provider>
-  );
+  return <AiContext.Provider value={contextValue}>{children}</AiContext.Provider>;
 }

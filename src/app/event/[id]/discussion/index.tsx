@@ -1,9 +1,16 @@
-import DetailHeader from "@/app/components/DetailHeader";
+import DetailHeader from "@/app/_components/DetailHeader";
+import { DiscussionJoinButton } from "@/app/event/[id]/discussion/_components/DiscussionJoinButton";
+import { DiscussionMessageInput } from "@/app/event/[id]/discussion/_components/DiscussionMessageInput";
+import { DiscussionMessageOptionsModal } from "@/app/event/[id]/discussion/_components/DiscussionMessageOptionsModal";
+import { EditMessageModal } from "@/app/event/[id]/discussion/_components/EditMessageModal";
+import { MessageItem } from "@/app/event/[id]/discussion/_components/MessageItem";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { useAuth } from "@/hooks/useAuth";
 import { useMessage } from "@/hooks/useMessage";
 import { useThread } from "@/hooks/useThread";
+import notify from "@/services/notificationService";
 import { Message } from "@/types/Message";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { isUserParticipant } from "@/types/Thread";
 import { useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
@@ -13,201 +20,14 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
-  Alert,
   FlatList,
-  Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-
-import { isUserParticipant } from "@/types/Thread";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-/**
- * Component for rendering an individual message
- */
-const MessageItem = ({
-  item,
-  currentUserId,
-  onLongPress,
-}: {
-  item: Message;
-  currentUserId?: string;
-  onLongPress: (message: Message) => void;
-}) => {
-  const isCurrentUser =
-    item.sender_id === currentUserId || item.sender?.id === currentUserId;
-
-  const displayName = isCurrentUser
-    ? "Anda"
-    : (item as any)?.sender?.fullname ||
-      (item as any)?.sender?.email ||
-      "Pengguna Lain";
-
-  const timeStr = (() => {
-    try {
-      const d = item.created_at ? new Date(item.created_at) : new Date();
-      return d.toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "";
-    }
-  })();
-
-  // Derive avatar placeholder (initials + color) for non-current users
-  const initials = useMemo(() => {
-    const parts = displayName.trim().split(/\s+/).filter(Boolean);
-    const first = parts[0]?.[0] || "U";
-    const second = parts[1]?.[0] || "";
-    return `${first}${second}`.toUpperCase();
-  }, [displayName]);
-
-  const avatarColor = useMemo(() => {
-    const palette = [
-      "EEC887",
-      "F3DDBF",
-      "D1E8E4",
-      "CFE8FF",
-      "FFE6CC",
-      "E7D4FF",
-      "FADADD",
-    ]; // light backgrounds
-    const sid = String(item.sender?.id || "0");
-    const sum = sid.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    return palette[sum % palette.length];
-  }, [item.sender?.id]);
-
-  const avatarUrl = `https://placehold.co/48x48/${avatarColor}/333.jpg?text=${encodeURIComponent(initials)}`;
-
-  return (
-    <TouchableOpacity onLongPress={() => onLongPress(item)} activeOpacity={0.7}>
-      <View
-        className={`flex-row items-start my-2 ${
-          isCurrentUser ? "justify-end" : "justify-start"
-        }`}
-      >
-        {!isCurrentUser && (
-          <Image
-            source={{ uri: (item.sender as any)?.avatar_url || avatarUrl }}
-            className="w-8 h-8 rounded-full mr-2"
-          />
-        )}
-        <View className={`${isCurrentUser ? "items-end" : "items-start"}`}>
-          <Text className="text-[11px] text-gray-500 mb-1">
-            {isCurrentUser
-              ? `${timeStr} • ${displayName}`
-              : `${displayName} • ${timeStr}`}
-          </Text>
-          <View
-            className={`px-3 py-2 rounded-2xl ${
-              isCurrentUser
-                ? "bg-[#4E7D79] rounded-br-md"
-                : "bg-[#EEC887] rounded-bl-md"
-            }`}
-            style={{
-              minWidth: 60,
-              maxWidth: "100%",
-            }}
-          >
-            <Text
-              className={`text-sm leading-5 ${
-                isCurrentUser ? "text-white" : "text-black"
-              }`}
-              style={{
-                flexShrink: 1,
-              }}
-            >
-              {item.content}
-            </Text>
-          </View>
-        </View>
-        {isCurrentUser && (
-          <Image
-            source={require("@/assets/images/icon.png")}
-            className="w-6 h-6 ml-2"
-            resizeMode="contain"
-          />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-/**
- * Component for editing a message
- */
-const EditMessageModal = ({
-  visible,
-  message,
-  onSave,
-  onCancel,
-  onChangeText,
-  isLoading,
-}: {
-  isLoading: boolean;
-  visible: boolean;
-  message: string;
-  onSave: () => void;
-  onCancel: () => void;
-  onChangeText: (text: string) => void;
-}) => (
-  <Modal
-    transparent={true}
-    visible={visible}
-    animationType="slide"
-    onRequestClose={onCancel}
-  >
-    <View className="flex-1 justify-center bg-black/50 p-4">
-      <View className="bg-white rounded-2xl p-6">
-        <Text className="text-xl font-bold text-[#4E7D79] mb-4">
-          Edit Message
-        </Text>
-
-        <TextInput
-          value={message}
-          onChangeText={onChangeText}
-          multiline
-          className="border border-gray-300 rounded-xl p-4 mb-4 min-h-[100px] text-[#4E7D79]"
-          placeholder="Edit your message..."
-          placeholderTextColor="#4E7D79"
-        />
-
-        <View className="flex-row justify-between">
-          <TouchableOpacity
-            onPress={onCancel}
-            className="bg-gray-200 rounded-xl py-3 px-6 mr-2 flex-1"
-          >
-            <Text className="text-[#4E7D79] text-center font-bold">Cancel</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={onSave}
-            className="bg-[#4E7D79] rounded-xl py-3 px-6 flex-1"
-            disabled={!message.trim()}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Text className="text-white text-center font-bold">Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  </Modal>
-);
-
-/**
- * Main discussion screen component
- */
 export default function DiscussionScreen() {
   const { id: eventId } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
@@ -235,7 +55,13 @@ export default function DiscussionScreen() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editMessageText, setEditMessageText] = useState("");
-  const [isMessageUpdated, setIsMessageUpdated] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<{
+    threadLoaded: boolean;
+    messagesLoaded: boolean;
+  }>({
+    threadLoaded: false,
+    messagesLoaded: false,
+  });
 
   // Ref for scrolling to bottom of messages
   const flatListRef = useRef<FlatList>(null);
@@ -253,12 +79,14 @@ export default function DiscussionScreen() {
     );
   }, [isCurrentUserParticipant, thread, user]);
 
+  // First effect to load thread
   useEffect(() => {
     const loadThread = async () => {
       if (!user || !eventId) return;
 
       try {
         await fetchThreadByEventId(eventId, user.id);
+        setLoadingStatus((prev) => ({ ...prev, threadLoaded: true }));
       } catch (error) {
         console.error("Failed to load thread:", error);
       }
@@ -267,30 +95,41 @@ export default function DiscussionScreen() {
     loadThread();
   }, [user, eventId, fetchThreadByEventId]);
 
-  // Separate effect untuk handle thread changes
+  // Second effect to load messages
   useEffect(() => {
-    if (!thread || !user) return;
-
     const loadMessages = async () => {
-      await fetchThreadMessages(thread.id);
-      setIsMessageUpdated(true);
+      if (!thread || !user || !eventId || loadingStatus.messagesLoaded) return;
+
+      try {
+        const isParticipant = checkCurrentUserParticipation({
+          thread,
+          currentUserID: user.id,
+        });
+
+        if (isParticipant && thread.event_id === eventId) {
+          await fetchThreadMessages(thread.id);
+          setLoadingStatus((prev) => ({
+            ...prev,
+            messagesLoaded: true,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load messages:", error);
+      }
     };
 
-    const isParticipant = checkCurrentUserParticipation({
-      thread,
-      currentUserID: user.id,
-    });
-
-    if (isParticipant && thread.event_id === eventId) {
+    // Only load messages if thread is loaded and messages are not already loaded
+    if (loadingStatus.threadLoaded && !loadingStatus.messagesLoaded) {
       loadMessages();
     }
   }, [
-    thread,
-    user,
+    thread?.id,
+    user?.id,
+    eventId,
+    loadingStatus.threadLoaded,
+    loadingStatus.messagesLoaded,
     checkCurrentUserParticipation,
     fetchThreadMessages,
-    eventId,
-    isMessageUpdated,
   ]);
 
   // Handler for joining the thread
@@ -307,15 +146,15 @@ export default function DiscussionScreen() {
       if (!isAlreadyParticipant) {
         // Join the thread if not already a participant
         const joinResult = await joinEventThread({
+          user_id: user.id,
           thread_id: thread.id,
           event_id: eventId,
         });
 
         if (!joinResult) {
-          Alert.alert(
-            "Gagal Bergabung",
-            "Tidak dapat bergabung ke diskusi. Silakan coba lagi."
-          );
+          notify.error("Gagal Bergabung", {
+            message: "Tidak dapat bergabung ke diskusi. Silakan coba lagi.",
+          });
           return;
         }
       }
@@ -324,7 +163,7 @@ export default function DiscussionScreen() {
       await fetchThreadMessages(thread.id);
     } catch (error) {
       console.error("Failed to join thread:", error);
-      Alert.alert("Kesalahan", "Terjadi kesalahan. Silakan coba lagi.");
+      notify.error("Kesalahan", { message: "Terjadi kesalahan. Silakan coba lagi." });
     }
   }, [user, thread, eventId, joinEventThread, fetchThreadMessages]);
 
@@ -332,23 +171,21 @@ export default function DiscussionScreen() {
   const handleSendMessage = useCallback(async () => {
     // Validate message
     if (!query.trim()) {
-      Alert.alert("Pesan Kosong", "Silakan masukkan pesan sebelum mengirim.");
+      notify.info("Pesan Kosong", { message: "Silakan masukkan pesan sebelum mengirim." });
       return;
     }
 
     if (query.length > 1000) {
-      Alert.alert(
-        "Pesan Terlalu Panjang",
-        "Pesan tidak boleh melebihi 1000 karakter."
-      );
+      notify.error("Pesan Terlalu Panjang", {
+        message: "Pesan tidak boleh melebihi 1000 karakter.",
+      });
       return;
     }
 
     if (!thread) {
-      Alert.alert(
-        "Diskusi Tidak Tersedia",
-        "Tidak dapat mengirim pesan. Silakan bergabung terlebih dahulu."
-      );
+      notify.error("Diskusi Tidak Tersedia", {
+        message: "Tidak dapat mengirim pesan. Silakan bergabung terlebih dahulu.",
+      });
       return;
     }
 
@@ -359,10 +196,9 @@ export default function DiscussionScreen() {
       });
 
       if (!sentMessage) {
-        Alert.alert(
-          "Gagal Mengirim",
-          "Tidak dapat mengirim pesan. Silakan coba lagi."
-        );
+        notify.error("Gagal Mengirim", {
+          message: "Tidak dapat mengirim pesan. Silakan coba lagi.",
+        });
         return;
       }
 
@@ -370,17 +206,17 @@ export default function DiscussionScreen() {
       setQuery("");
     } catch (error) {
       console.error("Failed to send message:", error);
-      Alert.alert(
-        "Gagal Mengirim",
-        "Tidak dapat mengirim pesan. Silakan coba lagi."
-      );
+      notify.error("Gagal Mengirim", {
+        message: "Tidak dapat mengirim pesan. Silakan coba lagi.",
+      });
     }
   }, [query, thread, sendDiscussionMessage]);
 
   // Handler for long-pressing a message (for edit/delete)
   const handleLongPressMessage = useCallback(
     (message: Message) => {
-      if (message.sender?.id === user?.id) setSelectedMessage(message);
+      if (message.sender?.id === user?.id || message.sender_id === user?.id)
+        setSelectedMessage(message);
     },
     [user?.id]
   );
@@ -389,16 +225,23 @@ export default function DiscussionScreen() {
   const handleDeleteMessage = useCallback(async () => {
     if (!selectedMessage) return;
 
-    try {
-      await deleteDiscussionMessage(selectedMessage.id);
-      setSelectedMessage(null);
-    } catch (error) {
-      console.error("Failed to delete message:", error);
-      Alert.alert(
-        "Gagal Menghapus",
-        "Tidak dapat menghapus pesan. Silakan coba lagi."
-      );
-    }
+    // Show confirmation dialog before deleting
+    notify.dialog("Hapus Pesan", {
+      message: "Apakah Anda yakin ingin menghapus pesan ini?",
+      confirmText: "Hapus",
+      cancelText: "Batal",
+      onConfirm: async () => {
+        try {
+          await deleteDiscussionMessage(selectedMessage.id);
+          setSelectedMessage(null);
+        } catch (error) {
+          console.error("Failed to delete message:", error);
+          notify.error("Gagal Menghapus", {
+            message: "Tidak dapat menghapus pesan. Silakan coba lagi.",
+          });
+        }
+      },
+    });
   }, [selectedMessage, deleteDiscussionMessage]);
 
   // Open edit modal for a message
@@ -424,10 +267,9 @@ export default function DiscussionScreen() {
       setEditMessageText("");
     } catch (error) {
       console.error("Failed to update message:", error);
-      Alert.alert(
-        "Gagal Mengubah",
-        "Tidak dapat mengubah pesan. Silakan coba lagi."
-      );
+      notify.error("Gagal Mengubah", {
+        message: "Tidak dapat mengubah pesan. Silakan coba lagi.",
+      });
     }
   }, [selectedMessage, editMessageText, updateDiscussionMessage]);
 
@@ -443,6 +285,10 @@ export default function DiscussionScreen() {
     [user?.id, handleLongPressMessage]
   );
 
+  if (isThreadLoading) {
+    return <LoadingScreen message="Loading discussion..." />;
+  }
+
   return (
     <SafeAreaView
       className="flex-1 bg-[#EEC887]"
@@ -454,23 +300,13 @@ export default function DiscussionScreen() {
         className="flex-1"
       >
         <View className="flex-1 bg-white rounded-t-3xl pt-6 px-4">
-          {isThreadLoading || !isMessageUpdated ? (
-            <View className="flex-1 items-center justify-center">
-              <ActivityIndicator color="#4E7D79" size="large" />
-            </View>
+          {!loadingStatus.messagesLoaded ? (
+            <LoadingScreen message="Loading messages..." />
           ) : !canInteract && thread ? (
-            <View className="flex-1 items-center justify-center">
-              <Text className="text-lg text-gray-600 mb-4">
-                Anda belum bergabung dalam diskusi ini
-              </Text>
-              <TouchableOpacity
-                onPress={handleJoin}
-                className="bg-[#4E7D79] rounded-xl py-3 px-6"
-                disabled={isThreadLoading}
-              >
-                <Text className="text-white font-bold">Bergabung</Text>
-              </TouchableOpacity>
-            </View>
+            <DiscussionJoinButton
+              onJoin={handleJoin}
+              isLoading={isThreadLoading}
+            />
           ) : (
             <>
               <FlatList
@@ -488,64 +324,24 @@ export default function DiscussionScreen() {
                   </View>
                 }
               />
-              <View className="flex-row items-center px-4 py-3 bg-white border-t border-gray-200">
-                <TextInput
-                  placeholder="Ketik pesan..."
-                  placeholderTextColor="#4E7D79"
-                  value={query}
-                  onChangeText={setQuery}
-                  className="flex-1 bg-[#F0F0F0] rounded-xl px-4 py-2 mr-2 text-[#4E7D79]"
-                  multiline
-                />
-                <TouchableOpacity
-                  onPress={handleSendMessage}
-                  className="bg-[#4E7D79] rounded-full p-3"
-                  disabled={!query.trim() || isMessageLoading}
-                >
-                  {isMessageLoading ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <Ionicons name="send" size={20} color="white" />
-                  )}
-                </TouchableOpacity>
-              </View>
+              <DiscussionMessageInput
+                query={query}
+                onChangeQuery={setQuery}
+                onSendMessage={handleSendMessage}
+                isLoading={isMessageLoading}
+              />
             </>
           )}
         </View>
       </KeyboardAvoidingView>
 
-      {/* Message Options Modal */}
-      <Modal
-        transparent
+      <DiscussionMessageOptionsModal
         visible={!!selectedMessage && !isEditModalVisible}
-        animationType="slide"
-        onRequestClose={() => setSelectedMessage(null)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl p-4">
-            <TouchableOpacity
-              onPress={() => openEditModal(selectedMessage!)}
-              className="flex-row items-center py-3 border-b border-gray-200"
-            >
-              <MaterialIcons name="edit" size={24} color="#4E7D79" />
-              <Text className="ml-3 text-[#4E7D79] text-base">Ubah Pesan</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleDeleteMessage}
-              className="flex-row items-center py-3"
-            >
-              <MaterialIcons name="delete" size={24} color="red" />
-              <Text className="ml-3 text-red-500 text-base">Hapus Pesan</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setSelectedMessage(null)}
-              className="mt-4 bg-[#F0F0F0] rounded-xl py-3 items-center"
-            >
-              <Text className="text-[#4E7D79] font-bold">Batal</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        message={selectedMessage}
+        onEdit={openEditModal}
+        onDelete={handleDeleteMessage}
+        onCancel={() => setSelectedMessage(null)}
+      />
 
       <EditMessageModal
         visible={isEditModalVisible}

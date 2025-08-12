@@ -15,6 +15,7 @@ export interface UserContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   error: string | null;
+  isAuthenticated: boolean;
 
   // Profile Management Methods
   fetchUserProfile: (userId?: string) => Promise<UserProfile | null>;

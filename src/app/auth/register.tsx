@@ -1,8 +1,8 @@
 // src/app/auth/register.tsx
-import Button from "@/components/atoms/Button";
+import Button from "@/components/ui/Button";
 import { Typography } from "@/constants/Typography";
 import { useAuth } from "@/hooks/useAuth";
-import { showDialogError, showDialogSuccess } from "@/utils/alert";
+import notify from "@/services/notificationService";
 import { logger } from "@/utils/logger";
 import { hasErrors, validate, validators } from "@/utils/validation";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,13 +10,15 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { AuthFooter } from "./_components/AuthFooter";
+import { AuthLogo } from "./_components/AuthLogo";
+import { AuthTitle } from "./_components/AuthTitle";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,11 +39,11 @@ export default function RegisterPage() {
       email: [validators.required("Email is required"), validators.email()],
       password: [
         validators.required("Password is required"),
-        validators.minLength(6, "Password must be at least 6 characters"),
+        validators.min(6, "Password must be at least 6 characters"),
       ],
       fullname: [
         validators.required("Display name is required"),
-        validators.minLength(2, "Display name must be at least 2 characters"),
+        validators.min(2, "Display name must be at least 2 characters"),
       ],
     };
 
@@ -74,7 +76,7 @@ export default function RegisterPage() {
 
       if (result) {
         // logger.log("RegisterPage", "Registration Successful");
-        showDialogSuccess("Success", "Registration successful!");
+        notify.success("Success", { message: "Registration successful!" });
         router.replace("/(tabs)");
       }
     } catch (error) {
@@ -82,7 +84,7 @@ export default function RegisterPage() {
         error instanceof Error ? error.message : "An unexpected error occurred";
 
       logger.error("RegisterPage", "Registration Error", errorMessage);
-      showDialogError("Registration Error", errorMessage);
+      notify.error("Registration Error", { message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -100,21 +102,10 @@ export default function RegisterPage() {
     >
       <View className="flex-1 justify-center">
         {/* Logo Section */}
-        <View className="items-center mb-6">
-          <Image
-            source={require("@/assets/images/splash.png")}
-            className="w-[263px] h-[263px]"
-            resizeMode="contain"
-          />
-        </View>
+        <AuthLogo />
 
         {/* Title */}
-        <Text
-          className="mb-6 text-[#1A1A1A] text-center"
-          style={Typography.styles.title}
-        >
-          Sign Up
-        </Text>
+        <AuthTitle title="Sign Up" />
 
         {/* Display Name Input */}
         <View className="mb-4">
@@ -239,14 +230,11 @@ export default function RegisterPage() {
         </View>
 
         {/* Login Link */}
-        <View className="items-center">
-          <Text className="text-[#666] text-sm">
-            Joined us before?{" "}
-            <Text className="text-blue-700" onPress={handleLogin}>
-              Login
-            </Text>
-          </Text>
-        </View>
+        <AuthFooter
+          message="Joined us before?"
+          linkText="Login"
+          onLinkPress={handleLogin}
+        />
       </View>
     </ScrollView>
   );

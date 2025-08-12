@@ -3,10 +3,11 @@ import {
   LocationContextType,
 } from "@/contexts/LocationContext";
 import { LocationService } from "@/services/locationService";
+import notify from "@/services/notificationService";
 import { Pagination, Sorting } from "@/types/ApiResponse";
 import { Location, LocationOptions, LocationPayload } from "@/types/Location";
-import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
 type LocationState = {
   locations: Location[];
@@ -14,12 +15,10 @@ type LocationState = {
   error: string | null;
 };
 
-type LocationAction =
-  | { type: "LOCATION_START" }
-  | { type: "LOCATION_SUCCESS_LOCATIONS"; payload: Location[] }
-  | { type: "LOCATION_ERROR"; payload: string }
-  | { type: "LOCATION_CLEAR_ERROR" }
-  | { type: "LOCATION_RESET" };
+type LocationAction = {
+  type: "LOCATION_SUCCESS_LOCATIONS";
+  payload: Location[];
+};
 
 const initialState: LocationState = {
   locations: [],
@@ -27,13 +26,11 @@ const initialState: LocationState = {
   error: null,
 };
 
-function locationReducer(
+function domainReducer(
   state: LocationState,
   action: LocationAction
 ): LocationState {
   switch (action.type) {
-    case "LOCATION_START":
-      return { ...state, isLoading: true, error: null };
     case "LOCATION_SUCCESS_LOCATIONS":
       return {
         ...state,
@@ -41,29 +38,31 @@ function locationReducer(
         locations: action.payload,
         error: null,
       };
-    case "LOCATION_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "LOCATION_CLEAR_ERROR":
-      return { ...state, error: null };
-    case "LOCATION_RESET":
-      return initialState;
     default:
       return state;
   }
 }
 
+const reducer = withAsyncReducer<LocationState, LocationAction>(
+  domainReducer as any,
+  initialState
+);
+
 export function LocationProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(locationReducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : customMessage || "An unexpected location error occurred";
-
-    dispatch({ type: "LOCATION_ERROR", payload: errorMessage });
-    showDialogError("Location Error", errorMessage);
-  }, []);
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : customMessage || "An unexpected location error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("Location Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
 
   const fetchLocations = useCallback(
     async (options?: {
@@ -71,15 +70,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       pagination?: Pagination;
       sorting?: Sorting;
     }): Promise<Location[] | null> => {
-      dispatch({ type: "LOCATION_START" });
-
+      asyncActions.start();
       try {
         const response = await LocationService.fetchLocations(
           options?.locationOptions,
           options?.pagination,
           options?.sorting
         );
-
         if (response.success && response.data) {
           dispatch({
             type: "LOCATION_SUCCESS_LOCATIONS",
@@ -87,7 +84,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           });
           return response.data;
         }
-
         return null;
       } catch (error) {
         handleError(error, "Gagal mengambil daftar lokasi");
@@ -100,19 +96,14 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const searchLocations = useCallback(
     async (
       query: string,
-      options?: {
-        locationOptions?: LocationOptions;
-        pagination?: Pagination;
-      }
+      options?: { locationOptions?: LocationOptions; pagination?: Pagination }
     ): Promise<Location[] | null> => {
-      dispatch({ type: "LOCATION_START" });
-
+      asyncActions.start();
       try {
         const response = await LocationService.searchLocations(
           query,
           options?.locationOptions
         );
-
         if (response.success && response.data) {
           dispatch({
             type: "LOCATION_SUCCESS_LOCATIONS",
@@ -120,7 +111,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           });
           return response.data;
         }
-
         return null;
       } catch (error) {
         handleError(error, "Gagal mencari lokasi");
@@ -132,21 +122,18 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const fetchLocationById = useCallback(
     async (locationId: string): Promise<Location | null> => {
-      dispatch({ type: "LOCATION_START" });
-
+      asyncActions.start();
       try {
         const data = await LocationService.getLocationById(locationId);
-
         if (data) {
-          // Optimistically update local state
+          const exists = state.locations.some((l) => l.id === data.id);
           dispatch({
             type: "LOCATION_SUCCESS_LOCATIONS",
-            payload: state.locations.some((loc) => loc.id === data.id)
-              ? state.locations.map((loc) => (loc.id === data.id ? data : loc))
+            payload: exists
+              ? state.locations.map((l) => (l.id === data.id ? data : l))
               : [...state.locations, data],
           });
         }
-
         return data;
       } catch (error) {
         handleError(error, `Gagal mengambil lokasi dengan ID ${locationId}`);
@@ -157,26 +144,22 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   );
 
   const getLocationById = useCallback(
-    (locationId: string): Location | undefined => {
-      return state.locations.find((loc) => loc.id === locationId);
-    },
+    (locationId: string): Location | undefined =>
+      state.locations.find((l) => l.id === locationId),
     [state.locations]
   );
 
   const createLocation = useCallback(
-    async (locationData: LocationPayload): Promise<Location | null> => {
-      dispatch({ type: "LOCATION_START" });
-
+    async (payload: LocationPayload): Promise<Location | null> => {
+      asyncActions.start();
       try {
-        const data = await LocationService.createLocation(locationData);
-
+        const data = await LocationService.createLocation(payload);
         if (data) {
           dispatch({
             type: "LOCATION_SUCCESS_LOCATIONS",
             payload: [...state.locations, data],
           });
         }
-
         return data;
       } catch (error) {
         handleError(error, "Gagal membuat lokasi");
@@ -186,13 +169,14 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     [handleError, state.locations]
   );
 
-  const clearError = useCallback(() => {
-    dispatch({ type: "LOCATION_CLEAR_ERROR" });
-  }, []);
-
-  const resetLocationState = useCallback(() => {
-    dispatch({ type: "LOCATION_RESET" });
-  }, []);
+  const clearError = useCallback(
+    () => asyncActions.clearError(),
+    [asyncActions]
+  );
+  const resetLocationState = useCallback(
+    () => asyncActions.reset(),
+    [asyncActions]
+  );
 
   const contextValue = useMemo<LocationContextType>(
     () => ({

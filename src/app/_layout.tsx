@@ -3,8 +3,16 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { memo } from "react";
 import "./global.css";
+// Import toast and dialog configurations
+import { dialogConfig } from "@/components/ui/dialog";
+import { Toast, toastConf } from "@/components/ui/toast";
 
-// Navigator memoized for performance
+// Combine configurations
+const combinedConfig = {
+  ...toastConf,
+  ...dialogConfig,
+};
+
 const RootNavigator = memo(function RootNavigator() {
   return (
     <>
@@ -75,6 +83,7 @@ export default function RootLayout() {
   return (
     <AppProvider>
       <RootNavigator />
+      <Toast config={combinedConfig} />
     </AppProvider>
   );
 }

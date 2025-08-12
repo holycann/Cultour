@@ -1,63 +1,57 @@
 import { SearchContext, SearchContextType } from "@/contexts/SearchContext";
+import notify from "@/services/notificationService";
 import { SearchService } from "@/services/searchService";
 import { Pagination } from "@/types/ApiResponse";
 import { SearchRequest, SearchResult } from "@/types/Search";
-import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
 type SearchState = {
   searchResults: SearchResult[];
-  isSearching: boolean;
+  isLoading: boolean;
   error: string | null;
 };
 
 type SearchAction =
-  | { type: "SEARCH_START" }
   | { type: "SEARCH_SUCCESS"; payload: SearchResult[] }
-  | { type: "SEARCH_ERROR"; payload: string }
-  | { type: "SEARCH_CLEAR" }
-  | { type: "SEARCH_RESET" };
+  | { type: "SEARCH_CLEAR" };
 
 const initialState: SearchState = {
   searchResults: [],
-  isSearching: false,
+  isLoading: false,
   error: null,
 };
 
-function searchReducer(state: SearchState, action: SearchAction): SearchState {
+function domainReducer(state: SearchState, action: SearchAction): SearchState {
   switch (action.type) {
-    case "SEARCH_START":
-      return { ...state, isSearching: true, error: null };
     case "SEARCH_SUCCESS":
       return {
         ...state,
-        isSearching: false,
+        isLoading: false,
         searchResults: action.payload,
         error: null,
       };
-    case "SEARCH_ERROR":
-      return { ...state, isSearching: false, error: action.payload };
     case "SEARCH_CLEAR":
       return { ...state, searchResults: [], error: null };
-    case "SEARCH_RESET":
-      return initialState;
     default:
       return state;
   }
 }
 
+const reducer = withAsyncReducer<SearchState, SearchAction>(domainReducer as any, initialState);
+
 export function SearchProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(searchReducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : customMessage || "An unexpected search error occurred";
-
-    dispatch({ type: "SEARCH_ERROR", payload: errorMessage });
-    showDialogError("Search Error", errorMessage);
-  }, []);
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage = error instanceof Error ? error.message : customMessage || "An unexpected search error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("Search Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
 
   const performSearch = useCallback(
     async (
@@ -66,7 +60,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         pagination?: Pagination;
       }
     ): Promise<SearchResult[] | null> => {
-      dispatch({ type: "SEARCH_START" });
+      asyncActions.start();
 
       try {
         const results = await SearchService.globalSearch(request);
@@ -89,25 +83,31 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SEARCH_CLEAR" });
   }, []);
 
+  const clearError = useCallback(() => {
+    asyncActions.clearError();
+  }, [asyncActions]);
+
   const resetSearchState = useCallback(() => {
-    dispatch({ type: "SEARCH_RESET" });
-  }, []);
+    asyncActions.reset();
+  }, [asyncActions]);
 
   const contextValue = useMemo<SearchContextType>(
     () => ({
       searchResults: state.searchResults,
-      isSearching: state.isSearching,
+      isSearching: state.isLoading,
       error: state.error,
       performSearch,
       clearSearch,
+      clearError,
       resetSearchState,
     }),
     [
       state.searchResults,
-      state.isSearching,
+      state.isLoading,
       state.error,
       performSearch,
       clearSearch,
+      clearError,
       resetSearchState,
     ]
   );

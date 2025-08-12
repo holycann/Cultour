@@ -1,12 +1,13 @@
+import { EventCard } from "@/components/EventCard";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import Colors from "@/constants/Colors";
 import { useEvent } from "@/hooks/useEvent";
+import { Event } from "@/types/Event";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
+  FlatList,
   RefreshControl,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -19,7 +20,7 @@ export default function EventScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     try {
       setRefreshing(true);
       await fetchEvents();
@@ -28,27 +29,31 @@ export default function EventScreen() {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [fetchEvents]);
 
   useEffect(() => {
     if (events.length === 0) {
       loadEvents();
     }
-  }, [events, fetchEvents]);
+  }, [events.length, loadEvents]);
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = useCallback(() => {
     router.push("/event/add");
-  };
+  }, [router]);
+
+  const keyExtractor = useCallback((item: Event) => item.id, []);
+
+  const renderEventItem = useCallback(({ item }: { item: Event }) => (
+    <EventCard item={item} variant="home" />
+  ), []);
+
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({ length: 312, offset: 312 * index, index }),
+    []
+  );
 
   if (isLoading) {
-    return (
-      <SafeAreaView
-        edges={["top", "left", "right"]}
-        className="flex-1 justify-center items-center bg-white"
-      >
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </SafeAreaView>
-    );
+    return <LoadingScreen message="Loading events..." />;
   }
 
   if (error) {
@@ -78,13 +83,12 @@ export default function EventScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingBottom: 30,
-        }}
+      <FlatList
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 30 }}
         showsVerticalScrollIndicator={false}
+        data={events}
+        keyExtractor={keyExtractor}
+        renderItem={renderEventItem}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -93,43 +97,12 @@ export default function EventScreen() {
             tintColor={Colors.primary}
           />
         }
-      >
-        {events.map((event) => (
-          <View
-            key={event.id}
-            className="bg-[#F3DDBF] rounded-2xl mb-5 shadow-md px-6 pt-6"
-            style={{
-              elevation: 5,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 3.84,
-            }}
-          >
-            <Image
-              source={{ uri: event.image_url || "" }}
-              className="w-full h-52 rounded-3xl "
-              resizeMode="cover"
-            />
-            <View className="p-4">
-              <Text className="text-xl font-bold text-[#1E1E1E] mb-4">
-                {event.name}
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => router.push(`/event/${event.id}`)}
-                className="bg-[#EEC887] px-6 py-2 rounded-full self-start"
-              >
-                <View className="bg-[#EEC887] rounded-full">
-                  <Text className="text-[#1E1E1E] font-semibold text-sm">
-                    See Detail
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
+        getItemLayout={getItemLayout}
+        initialNumToRender={5}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews
+      />
     </View>
   );
 }

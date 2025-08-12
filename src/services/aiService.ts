@@ -19,13 +19,10 @@ export class AiService extends BaseApiService {
     request: AiSessionCreate
   ): Promise<AiSession | null> {
     try {
-      console.log("request:", request);
       const response = await this.post<AiSessionCreate, AiSession>(
         "/ai/chat/session",
         request
       );
-
-      console.log("response:", response);
 
       return this.handleApiResponse<AiSession>(response, true).data;
     } catch (error) {

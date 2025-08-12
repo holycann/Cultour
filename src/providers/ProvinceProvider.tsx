@@ -2,11 +2,12 @@ import {
   ProvinceContext,
   ProvinceContextType,
 } from "@/contexts/ProvinceContext";
+import notify from "@/services/notificationService";
 import { ProvinceService } from "@/services/provinceService";
 import { Pagination, Sorting } from "@/types/ApiResponse";
 import { Province } from "@/types/Province";
-import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
 type ProvinceState = {
   provinces: Province[];
@@ -19,7 +20,6 @@ type ProvinceState = {
 };
 
 type ProvinceAction =
-  | { type: "PROVINCE_START" }
   | {
       type: "PROVINCE_SUCCESS_PROVINCES";
       payload: {
@@ -36,9 +36,6 @@ type ProvinceAction =
         listType?: "default" | "all";
       };
     }
-  | { type: "PROVINCE_ERROR"; payload: string }
-  | { type: "PROVINCE_CLEAR_ERROR" }
-  | { type: "PROVINCE_RESET" }
   | { type: "PROVINCE_SET_PAGE"; payload: number };
 
 const initialState: ProvinceState = {
@@ -51,14 +48,12 @@ const initialState: ProvinceState = {
   hasMoreProvinces: false,
 };
 
-function provinceReducer(
+function domainReducer(
   state: ProvinceState,
   action: ProvinceAction
 ): ProvinceState {
   switch (action.type) {
-    case "PROVINCE_START":
-      return { ...state, isLoading: true, error: null };
-    case "PROVINCE_SUCCESS_PROVINCES":
+    case "PROVINCE_SUCCESS_PROVINCES": {
       const { listType = "default" } = action.payload;
       return {
         ...state,
@@ -70,46 +65,52 @@ function provinceReducer(
         currentPage: action.payload.pagination?.page || state.currentPage,
         error: null,
       };
-    case "PROVINCE_APPEND_SUCCESS":
-      const { listType: appendListType = "default" } = action.payload;
+    }
+    case "PROVINCE_APPEND_SUCCESS": {
+      const { listType = "default" } = action.payload;
       return {
         ...state,
         isLoading: false,
-        ...(appendListType === "all"
-          ? { allProvinces: [...state.allProvinces, ...action.payload.provinces] }
+        ...(listType === "all"
+          ? {
+              allProvinces: [
+                ...state.allProvinces,
+                ...action.payload.provinces,
+              ],
+            }
           : { provinces: [...state.provinces, ...action.payload.provinces] }),
         pagination: action.payload.pagination,
         currentPage: action.payload.pagination?.page || state.currentPage,
         error: null,
       };
+    }
     case "PROVINCE_SET_PAGE":
-      return {
-        ...state,
-        currentPage: action.payload,
-      };
-    case "PROVINCE_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "PROVINCE_CLEAR_ERROR":
-      return { ...state, error: null };
-    case "PROVINCE_RESET":
-      return initialState;
+      return { ...state, currentPage: action.payload };
     default:
       return state;
   }
 }
 
+const reducer = withAsyncReducer<ProvinceState, ProvinceAction>(
+  domainReducer as any,
+  initialState
+);
+
 export function ProvinceProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(provinceReducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : customMessage || "An unexpected province error occurred";
-
-    dispatch({ type: "PROVINCE_ERROR", payload: errorMessage });
-    showDialogError("Province Error", errorMessage);
-  }, []);
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : customMessage || "An unexpected province error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("Province Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
 
   const fetchProvinces = useCallback(
     async (options?: {
@@ -117,14 +118,12 @@ export function ProvinceProvider({ children }: { children: ReactNode }) {
       sorting?: Sorting;
       listType?: "default" | "all";
     }): Promise<Province[] | null> => {
-      dispatch({ type: "PROVINCE_START" });
-
+      asyncActions.start();
       try {
         const response = await ProvinceService.fetchProvinces(
           options?.pagination,
           options?.sorting
         );
-
         if (response.success && response.data) {
           dispatch({
             type: "PROVINCE_SUCCESS_PROVINCES",
@@ -136,7 +135,6 @@ export function ProvinceProvider({ children }: { children: ReactNode }) {
           });
           return response.data;
         }
-
         return null;
       } catch (error) {
         handleError(error, "Gagal mengambil daftar provinsi");
@@ -149,16 +147,11 @@ export function ProvinceProvider({ children }: { children: ReactNode }) {
   const searchProvinces = useCallback(
     async (
       query: string,
-      options?: {
-        pagination?: Pagination;
-        listType?: "default" | "all";
-      }
+      options?: { pagination?: Pagination; listType?: "default" | "all" }
     ): Promise<Province[] | null> => {
-      dispatch({ type: "PROVINCE_START" });
-
+      asyncActions.start();
       try {
         const response = await ProvinceService.searchProvinces(query);
-
         if (response.success && response.data) {
           dispatch({
             type: "PROVINCE_SUCCESS_PROVINCES",
@@ -170,7 +163,6 @@ export function ProvinceProvider({ children }: { children: ReactNode }) {
           });
           return response.data;
         }
-
         return null;
       } catch (error) {
         handleError(error, "Gagal mencari provinsi");
@@ -182,26 +174,21 @@ export function ProvinceProvider({ children }: { children: ReactNode }) {
 
   const fetchProvinceById = useCallback(
     async (provinceId: string): Promise<Province | null> => {
-      dispatch({ type: "PROVINCE_START" });
-
+      asyncActions.start();
       try {
         const data = await ProvinceService.getProvinceById(provinceId);
-
         if (data) {
-          // Optimistically update local state
+          const exists = state.provinces.some((p) => p.id === data.id);
           dispatch({
             type: "PROVINCE_SUCCESS_PROVINCES",
             payload: {
-              provinces: state.provinces.some((prov) => prov.id === data.id)
-                ? state.provinces.map((prov) =>
-                    prov.id === data.id ? data : prov
-                  )
+              provinces: exists
+                ? state.provinces.map((p) => (p.id === data.id ? data : p))
                 : [...state.provinces, data],
               listType: "default",
             },
           });
         }
-
         return data;
       } catch (error) {
         handleError(error, `Gagal mengambil provinsi dengan ID ${provinceId}`);
@@ -212,19 +199,19 @@ export function ProvinceProvider({ children }: { children: ReactNode }) {
   );
 
   const getProvinceById = useCallback(
-    (provinceId: string): Province | undefined => {
-      return state.provinces.find((prov) => prov.id === provinceId);
-    },
+    (provinceId: string): Province | undefined =>
+      state.provinces.find((p) => p.id === provinceId),
     [state.provinces]
   );
 
-  const clearError = useCallback(() => {
-    dispatch({ type: "PROVINCE_CLEAR_ERROR" });
-  }, []);
-
-  const resetProvinceState = useCallback(() => {
-    dispatch({ type: "PROVINCE_RESET" });
-  }, []);
+  const clearError = useCallback(
+    () => asyncActions.clearError(),
+    [asyncActions]
+  );
+  const resetProvinceState = useCallback(
+    () => asyncActions.reset(),
+    [asyncActions]
+  );
 
   const contextValue = useMemo<ProvinceContextType>(
     () => ({
@@ -236,7 +223,7 @@ export function ProvinceProvider({ children }: { children: ReactNode }) {
       currentPage: state.currentPage,
       totalPages:
         state.pagination?.total_pages ||
-        (state.pagination?.total && state.pagination.per_page
+        (state.pagination?.total && state.pagination?.per_page
           ? Math.max(
               1,
               Math.ceil(state.pagination.total / state.pagination.per_page)

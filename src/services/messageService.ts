@@ -71,7 +71,8 @@ export class MessageService extends BaseApiService {
   ): Promise<Message | null> {
     try {
       const response = await this.put<UpdateDiscussionMessage, Message>(
-        `/messages/${payload.id}`
+        `/messages/${payload.id}`,
+        payload
       );
 
       return this.handleApiResponse<Message>(response, true).data;

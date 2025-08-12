@@ -1,12 +1,10 @@
-import DetailHeader from "@/app/components/DetailHeader";
+import DetailHeader from "@/app/_components/DetailHeader";
 import { useUser } from "@/hooks/useUser";
-import { Ionicons } from "@expo/vector-icons";
+import notify from "@/services/notificationService";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
   ScrollView,
   Text,
   TextInput,
@@ -14,6 +12,16 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { IdentityUploader } from "./_components/IdentityUploader";
+import { VerificationCheckboxes } from "./_components/VerificationCheckboxes";
+
+const shadowStyle = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  elevation: 2,
+};
 
 export default function IdentityVerificationScreen() {
   const router = useRouter();
@@ -27,7 +35,7 @@ export default function IdentityVerificationScreen() {
 
   useEffect(() => {
     if (profile?.identity_image_url) {
-      Alert.alert("Error", "Already Verified Identity");
+      notify.info("Already Verified", { message: "Your identity has been verified" });
       router.replace("/(tabs)/profile");
     }
 
@@ -51,27 +59,27 @@ export default function IdentityVerificationScreen() {
 
   const handleSave = async () => {
     if (!fullName) {
-      Alert.alert("Error", "Harap masukkan nama lengkap");
+      notify.error("Validation", { message: "Harap masukkan nama lengkap" });
       return;
     }
 
     if (!idDocument) {
-      Alert.alert("Error", "Harap unggah dokumen identitas");
+      notify.error("Validation", { message: "Harap unggah dokumen identitas" });
       return;
     }
 
     if (!isConfirmedIdentity) {
-      Alert.alert("Error", "Harap konfirmasi kepemilikan dokumen");
+      notify.error("Validation", { message: "Harap konfirmasi kepemilikan dokumen" });
       return;
     }
 
     if (!isAgreedToTerms) {
-      Alert.alert("Error", "Harap setujui syarat dan ketentuan");
+      notify.error("Validation", { message: "Harap setujui syarat dan ketentuan" });
       return;
     }
 
     if (!isUnderstandMisleading) {
-      Alert.alert("Error", "Harap pahami konsekuensi informasi palsu");
+      notify.error("Validation", { message: "Harap pahami konsekuensi informasi palsu" });
       return;
     }
 
@@ -83,24 +91,20 @@ export default function IdentityVerificationScreen() {
       });
 
       if (success) {
-        Alert.alert("Sukses", "Verifikasi identitas berhasil", [
-          {
-            text: "OK",
-            onPress: () => router.replace("/profile"),
-          },
-        ]);
+        notify.success("Sukses", { message: "Verifikasi identitas berhasil" });
+        router.replace("/profile");
       }
     } catch (error) {
-      Alert.alert("Error", "Gagal memperbarui profil");
+      notify.error("Error", { message: "Gagal memperbarui profil" });
     }
   };
 
   const openTermsAndConditions = () => {
-    Alert.alert("Syarat & Ketentuan", "Fitur akan segera hadir.");
+    notify.info("Syarat & Ketentuan", { message: "Fitur akan segera hadir." });
   };
 
   const openPrivacyPolicy = () => {
-    Alert.alert("Kebijakan Privasi", "Fitur akan segera hadir.");
+    notify.info("Kebijakan Privasi", { message: "Fitur akan segera hadir." });
   };
 
   return (
@@ -138,95 +142,26 @@ export default function IdentityVerificationScreen() {
         </View>
 
         {/* Upload Dokumen */}
-        <View className="mb-4">
-          <Text className="mb-2 text-[#4E7D79] font-semibold">
-            Upload ID Document
-          </Text>
-          <TouchableOpacity
-            onPress={pickIdDocument}
-            className="bg-white rounded-xl h-48 justify-center items-center"
-            style={shadowStyle}
-          >
-            {idDocument ? (
-              <Image
-                source={{ uri: idDocument.uri }}
-                className="w-full h-full rounded-xl"
-                resizeMode="cover"
-              />
-            ) : (
-              <Text className="text-[#4E7D79]">Upload ID Document</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <IdentityUploader
+          idDocument={idDocument}
+          onPickDocument={pickIdDocument}
+        />
 
         {/* Checkbox */}
-        <View className="mb-4">
-          <TouchableOpacity
-            className="flex-row items-center mb-2"
-            onPress={() => setIsConfirmedIdentity(!isConfirmedIdentity)}
-          >
-            <Ionicons
-              name={isConfirmedIdentity ? "checkbox-outline" : "square-outline"}
-              size={24}
-              color="#4E7D79"
-            />
-            <Text className="ml-2 text-[#4E7D79] text-xs">
-              I confirm that the uploaded identity document belongs to me and is
-              valid.
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="flex-row items-center mb-2"
-            onPress={() => setIsAgreedToTerms(!isAgreedToTerms)}
-          >
-            <Ionicons
-              name={isAgreedToTerms ? "checkbox-outline" : "square-outline"}
-              size={24}
-              color="#4E7D79"
-            />
-            <Text className="ml-2 text-[#4E7D79] text-xs">
-              I agree that the platform may use my information solely for
-              identity verification purposes.
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="flex-row items-center mb-2"
-            onPress={() => setIsUnderstandMisleading(!isUnderstandMisleading)}
-          >
-            <Ionicons
-              name={
-                isUnderstandMisleading ? "checkbox-outline" : "square-outline"
-              }
-              size={24}
-              color="#4E7D79"
-            />
-            <Text className="ml-2 text-[#4E7D79] text-xs">
-              I understand that submitting false or misleading information may
-              result in the suspension of my account.
-            </Text>
-          </TouchableOpacity>
-
-          <View className="flex-row justify-center mt-2">
-            <Text className="text-[#4E7D79] text-xs text-center">
-              I have read and agree to the{" "}
-              <Text
-                onPress={openTermsAndConditions}
-                style={{ color: "#EEC887", textDecorationLine: "underline" }}
-              >
-                Terms & Conditions
-              </Text>{" "}
-              and{" "}
-              <Text
-                onPress={openPrivacyPolicy}
-                style={{ color: "#EEC887", textDecorationLine: "underline" }}
-              >
-                Privacy Policy
-              </Text>
-            </Text>
-          </View>
-        </View>
+        <VerificationCheckboxes
+          isConfirmedIdentity={isConfirmedIdentity}
+          isAgreedToTerms={isAgreedToTerms}
+          isUnderstandMisleading={isUnderstandMisleading}
+          onToggleConfirmedIdentity={() =>
+            setIsConfirmedIdentity(!isConfirmedIdentity)
+          }
+          onToggleAgreedToTerms={() => setIsAgreedToTerms(!isAgreedToTerms)}
+          onToggleUnderstandMisleading={() =>
+            setIsUnderstandMisleading(!isUnderstandMisleading)
+          }
+          onOpenTermsAndConditions={openTermsAndConditions}
+          onOpenPrivacyPolicy={openPrivacyPolicy}
+        />
 
         {/* Tombol Simpan */}
         <TouchableOpacity
@@ -239,11 +174,3 @@ export default function IdentityVerificationScreen() {
     </SafeAreaView>
   );
 }
-
-const shadowStyle = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 3,
-  elevation: 2,
-};

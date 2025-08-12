@@ -1,19 +1,28 @@
-import DetailHeader from "@/app/components/DetailHeader";
+import DetailHeader from "@/app/_components/DetailHeader";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
-import { Ionicons } from "@expo/vector-icons";
+import notify from "@/services/notificationService";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Image,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ProfileImagePicker } from "./_components/ProfileImagePicker";
+
+const shadowStyle = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 3,
+  elevation: 2,
+};
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -23,6 +32,7 @@ export default function EditProfileScreen() {
   const [fullname, setFullname] = useState("");
   const [bio, setBio] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -33,56 +43,107 @@ export default function EditProfileScreen() {
   }, [profile]);
 
   const pickProfileImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
 
-    if (!result.canceled) {
-      const selectedImage = result.assets[0];
+      if (!result.canceled) {
+        const selectedImage = result.assets[0];
 
-      try {
-        const success = await uploadAvatar({
-          id: profile?.id || "",
-          image: selectedImage,
-          avatar_url: profile?.avatar_url || null,
-        });
+        try {
+          setIsUpdating(true);
+          const success = await uploadAvatar({
+            id: profile?.id || "",
+            image: selectedImage,
+            avatar_url: profile?.avatar_url || null,
+          });
 
-        if (success) {
-          setProfileImage(selectedImage.uri);
+          if (success) {
+            setProfileImage(selectedImage.uri);
+            notify.success("Foto Profil Berhasil Diperbarui");
+          } else {
+            notify.error("Gagal Mengunggah Foto", {
+              message: "Tidak dapat mengunggah foto profil. Silakan coba lagi."
+            });
+          }
+        } catch (err) {
+          console.error("Failed to upload avatar:", err);
+          notify.error("Kesalahan Unggah", {
+            message: "Terjadi kesalahan saat mengunggah foto. Silakan coba lagi."
+          });
+        } finally {
+          setIsUpdating(false);
         }
-      } catch (err) {
-        console.error("Failed to upload avatar:", err);
       }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      notify.error("Kesalahan Pemilihan Foto", {
+        message: "Tidak dapat membuka galeri foto. Silakan coba lagi."
+      });
     }
   };
 
   const handleSave = async () => {
-    try {
-      await updateProfile({
-        id: profile?.id || "",
-        fullname: fullname || "",
-        bio: bio || "",
+    // Validate inputs
+    if (!fullname.trim()) {
+      notify.error("Nama Tidak Valid", {
+        message: "Nama lengkap tidak boleh kosong"
       });
-      router.back();
+      return;
+    }
+
+    // Check if anything has actually changed
+    if (
+      fullname === profile?.fullname && 
+      bio === profile?.bio
+    ) {
+      notify.info("Tidak Ada Perubahan", {
+        message: "Tidak ada data yang diperbarui"
+      });
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      
+      const updateResult = await updateProfile({
+        id: profile?.id || "",
+        fullname: fullname.trim() || "",
+        bio: bio.trim() || "",
+      });
+
+      if (updateResult) {
+        notify.success("Profil Berhasil Diperbarui");
+        router.back();
+      } else {
+        notify.error("Gagal Memperbarui Profil", {
+          message: "Tidak dapat memperbarui profil. Silakan coba lagi."
+        });
+      }
     } catch (err) {
       console.error("Failed to update profile:", err);
+      
+      // Detailed error handling
+      if (err instanceof Error) {
+        notify.error("Kesalahan Sistem", {
+          message: err.message || "Terjadi kesalahan saat memperbarui profil"
+        });
+      } else {
+        notify.error("Kesalahan Tidak Dikenal", {
+          message: "Terjadi kesalahan yang tidak terduga"
+        });
+      }
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   if (isLoading) {
-    return (
-      <SafeAreaView
-        edges={["top", "left", "right"]}
-        className="flex-1 justify-center items-center bg-[#F9EFE4]"
-      >
-        <Text className={`text-center text-[#4E7D79]`}>
-          {"Loading profile..."}
-        </Text>
-      </SafeAreaView>
-    );
+    return <LoadingScreen message="Loading profile..." />;
   }
 
   return (
@@ -100,28 +161,11 @@ export default function EditProfileScreen() {
         className="bg-white rounded-t-3xl px-4 md:px-6 pt-6 md:pt-8"
       >
         {/* Avatar Picker */}
-        <TouchableOpacity
-          onPress={pickProfileImage}
-          className="w-32 h-32 rounded-full justify-center items-center self-center mb-6"
-          style={shadowStyle}
-        >
-          {profileImage ? (
-            <Image
-              source={{ uri: profileImage }}
-              className="w-full h-full rounded-full"
-              resizeMode="cover"
-            />
-          ) : (
-            <Image
-              source={require("@/assets/images/logo.png")}
-              className="w-28 h-28 rounded-full"
-              resizeMode="contain"
-            />
-          )}
-          <View className="absolute bottom-0 right-0 bg-[#EEC887] rounded-full p-2">
-            <Ionicons name="pencil-outline" size={20} color="#4E7D79" />
-          </View>
-        </TouchableOpacity>
+        <ProfileImagePicker
+          profileImage={profileImage}
+          onPickImage={pickProfileImage}
+          disabled={isUpdating}
+        />
 
         {/* Full Name */}
         <View className="w-full mb-4">
@@ -131,6 +175,7 @@ export default function EditProfileScreen() {
             placeholderTextColor="#4E7D79"
             value={fullname}
             onChangeText={setFullname}
+            editable={!isUpdating}
             className="bg-white rounded-xl px-4 py-3 text-[#1E1E1E]"
             style={shadowStyle}
           />
@@ -157,6 +202,7 @@ export default function EditProfileScreen() {
             placeholderTextColor="#4E7D79"
             value={bio}
             onChangeText={setBio}
+            editable={!isUpdating}
             multiline
             className="bg-white rounded-xl px-4 py-3 text-[#1E1E1E]"
             style={shadowStyle}
@@ -166,19 +212,18 @@ export default function EditProfileScreen() {
         {/* Save Button */}
         <TouchableOpacity
           onPress={handleSave}
-          className="bg-[#EEC887] rounded-2xl py-4 items-center w-full mb-10"
+          disabled={isUpdating}
+          className={`rounded-2xl py-4 items-center w-full mb-10 ${
+            isUpdating ? 'bg-gray-300' : 'bg-[#EEC887]'
+          }`}
         >
-          <Text className="text-[#4E7D79] font-bold text-lg">Save</Text>
+          <Text className={`font-bold text-lg ${
+            isUpdating ? 'text-gray-500' : 'text-[#4E7D79]'
+          }`}>
+            {isUpdating ? 'Menyimpan...' : 'Simpan'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const shadowStyle = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 3,
-  elevation: 2,
-};

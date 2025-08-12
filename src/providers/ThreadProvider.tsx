@@ -1,4 +1,5 @@
 import { ThreadContext, ThreadContextType } from "@/contexts/ThreadContext";
+import notify from "@/services/notificationService";
 import { ThreadService } from "@/services/threadService";
 import {
   CheckParticipant,
@@ -7,8 +8,8 @@ import {
   ThreadJoinData,
   isUserParticipant,
 } from "@/types/Thread";
-import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
 type ThreadReducerState = {
   thread?: Thread | null;
@@ -18,12 +19,8 @@ type ThreadReducerState = {
 };
 
 type ThreadAction =
-  | { type: "THREAD_START" }
   | { type: "THREAD_SUCCESS"; payload: Thread }
   | { type: "THREAD_UPDATE"; payload: Thread }
-  | { type: "THREAD_ERROR"; payload: string }
-  | { type: "THREAD_CLEAR_ERROR" }
-  | { type: "THREAD_RESET" }
   | { type: "SET_CURRENT_USER_PARTICIPANT"; payload: boolean }
   | { type: "SET_CURRENT_THREAD"; payload: Thread | null };
 
@@ -34,13 +31,11 @@ const initialState: ThreadReducerState = {
   isCurrentUserParticipant: false,
 };
 
-function threadReducer(
+function domainReducer(
   state: ThreadReducerState,
   action: ThreadAction
 ): ThreadReducerState {
   switch (action.type) {
-    case "THREAD_START":
-      return { ...state, isLoading: true, error: null };
     case "THREAD_SUCCESS":
       return {
         ...state,
@@ -55,12 +50,6 @@ function threadReducer(
         thread: action.payload,
         error: null,
       };
-    case "THREAD_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "THREAD_CLEAR_ERROR":
-      return { ...state, error: null };
-    case "THREAD_RESET":
-      return initialState;
     case "SET_CURRENT_USER_PARTICIPANT":
       return { ...state, isCurrentUserParticipant: action.payload };
     case "SET_CURRENT_THREAD":
@@ -70,18 +59,26 @@ function threadReducer(
   }
 }
 
+const reducer = withAsyncReducer<ThreadReducerState, ThreadAction>(
+  domainReducer as any,
+  initialState
+);
+
 export function ThreadProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(threadReducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : customMessage || "An unexpected thread error occurred";
-
-    dispatch({ type: "THREAD_ERROR", payload: errorMessage });
-    showDialogError("Thread Error", errorMessage);
-  }, []);
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : customMessage || "An unexpected thread error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("Thread Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
 
   const setCurrentThread = useCallback((thread: Thread | null) => {
     dispatch({ type: "SET_CURRENT_THREAD", payload: thread });
@@ -117,7 +114,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
   const fetchThreadByEventId = useCallback(
     async (eventId: string, currentUserId?: string): Promise<Thread | null> => {
-      dispatch({ type: "THREAD_START" });
+      asyncActions.start();
 
       try {
         const result = await ThreadService.getThreadByEventId(eventId);
@@ -126,8 +123,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         if (!result.success) {
           const errorMessage =
             result.message || "Failed to get thread for event";
-          dispatch({ type: "THREAD_ERROR", payload: errorMessage });
-          showDialogError("Error", errorMessage);
+          asyncActions.error(errorMessage);
+          notify.error("Error", { message: errorMessage });
           setCurrentThread(null);
           return null;
         }
@@ -137,16 +134,13 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
           setCurrentThread(null);
           return null;
         }
-        
+
         if (!result.data.id || !result.data.event_id) {
-          dispatch({
-            type: "THREAD_ERROR",
-            payload: "Invalid thread data received",
-          });
-          showDialogError("Error", "Invalid thread data");
+          asyncActions.error("Invalid thread data received");
+          notify.error("Error", { message: "Invalid thread data" });
           return null;
         }
-        
+
         // Dispatch thread success and check participation
         dispatch({ type: "THREAD_SUCCESS", payload: result.data });
 
@@ -164,12 +158,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             ? error.message
             : "Unknown error occurred while fetching thread";
 
-        dispatch({
-          type: "THREAD_ERROR",
-          payload: errorMessage,
-        });
-
-        showDialogError("Error", errorMessage);
+        asyncActions.error(errorMessage);
+        notify.error("Error", { message: errorMessage });
         return null;
       }
     },
@@ -178,7 +168,7 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
 
   const createEventThread = useCallback(
     async (threadData: ThreadCreateData): Promise<Thread | null> => {
-      dispatch({ type: "THREAD_START" });
+      asyncActions.start();
 
       try {
         const result = await ThreadService.createEventThread(threadData);
@@ -186,25 +176,22 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         // Handle creation failure
         if (!result.success) {
           const errorMessage = result.message || "Failed to create thread";
-          dispatch({ type: "THREAD_ERROR", payload: errorMessage });
-          showDialogError("Error", errorMessage);
+          asyncActions.error(errorMessage);
+          notify.error("Error", { message: errorMessage });
           return null;
         }
 
         // Validate thread data
         const thread = result.data as Thread;
         if (!thread || !thread.id || !thread.event_id) {
-          dispatch({
-            type: "THREAD_ERROR",
-            payload: "Invalid thread data received after creation",
-          });
-          showDialogError("Error", "Invalid thread data");
+          asyncActions.error("Invalid thread data received after creation");
+          notify.error("Error", { message: "Invalid thread data" });
           return null;
         }
 
         // Dispatch thread success
         dispatch({ type: "THREAD_SUCCESS", payload: thread });
-        showDialogSuccess("Success", "Discussion thread created successfully");
+        notify.success("Success", { message: "Discussion thread created successfully" });
 
         return thread;
       } catch (error) {
@@ -213,12 +200,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             ? error.message
             : "Unknown error occurred while creating thread";
 
-        dispatch({
-          type: "THREAD_ERROR",
-          payload: errorMessage,
-        });
-
-        showDialogError("Error", errorMessage);
+        asyncActions.error(errorMessage);
+        notify.error("Error", { message: errorMessage });
         return null;
       }
     },
@@ -229,15 +212,14 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
     async (joinData: ThreadJoinData): Promise<boolean> => {
       // Validate input parameters
       if (!joinData.thread_id || !joinData.event_id) {
-        dispatch({
-          type: "THREAD_ERROR",
-          payload: "Invalid join data: Thread ID and Event ID are required",
-        });
-        showDialogError("Error", "Invalid join data");
+        asyncActions.error(
+          "Invalid join data: Thread ID and Event ID are required"
+        );
+        notify.error("Error", { message: "Invalid join data" });
         return false;
       }
 
-      dispatch({ type: "THREAD_START" });
+      asyncActions.start();
 
       try {
         const result = await ThreadService.joinEventThread(joinData);
@@ -245,13 +227,28 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
         // Comprehensive result validation
         if (!result.success) {
           const errorMessage = result.message || "Failed to join event thread";
-          dispatch({ type: "THREAD_ERROR", payload: errorMessage });
-          showDialogError("Error", errorMessage);
+          asyncActions.error(errorMessage);
+          notify.error("Error", { message: errorMessage });
           return false;
         }
 
+        dispatch({
+          type: "THREAD_UPDATE",
+          payload: {
+            ...(state.thread as Thread),
+            discussion_participants: [
+              ...(state.thread?.discussion_participants || []),
+              {
+                user_id: joinData.user_id,
+                thread_id: joinData.thread_id,
+                joined_at: new Date().toISOString(),
+              },
+            ],
+          },
+        });
+
         // Show success dialog
-        showDialogSuccess("Success", "Successfully joined the thread");
+        notify.success("Success", { message: "Successfully joined the thread" });
 
         return true;
       } catch (error) {
@@ -260,12 +257,8 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
             ? error.message
             : "Unknown error occurred while joining thread";
 
-        dispatch({
-          type: "THREAD_ERROR",
-          payload: errorMessage,
-        });
-
-        showDialogError("Error", errorMessage);
+        asyncActions.error(errorMessage);
+        notify.error("Error", { message: errorMessage });
         return false;
       }
     },
@@ -273,12 +266,12 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
   );
 
   const clearError = useCallback(() => {
-    dispatch({ type: "THREAD_CLEAR_ERROR" });
-  }, []);
+    asyncActions.clearError();
+  }, [asyncActions]);
 
   const resetThreadState = useCallback(() => {
-    dispatch({ type: "THREAD_RESET" });
-  }, []);
+    asyncActions.reset();
+  }, [asyncActions]);
 
   const contextValue = useMemo<ThreadContextType>(
     () => ({

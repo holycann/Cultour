@@ -1,9 +1,10 @@
 import { CityContext, CityContextType } from "@/contexts/CityContext";
 import { CityService } from "@/services/cityService";
+import notify from "@/services/notificationService";
 import { Pagination, Sorting } from "@/types/ApiResponse";
 import { City, CityOptions } from "@/types/City";
-import { showDialogError } from "@/utils/alert";
 import React, { ReactNode, useCallback, useMemo, useReducer } from "react";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
 type CityState = {
   cities: City[];
@@ -17,7 +18,6 @@ type CityState = {
 };
 
 type CityAction =
-  | { type: "CITY_START" }
   | {
       type: "CITY_SUCCESS_CITIES";
       payload: {
@@ -34,9 +34,6 @@ type CityAction =
         listType?: "home" | "recommended" | "default" | "all";
       };
     }
-  | { type: "CITY_ERROR"; payload: string }
-  | { type: "CITY_RESET" }
-  | { type: "CITY_CLEAR_ERROR" }
   | { type: "CITY_UPDATE_SINGLE"; payload: City }
   | { type: "CITY_SET_PAGE"; payload: number };
 
@@ -51,11 +48,9 @@ const initialState: CityState = {
   currentPage: 1,
 };
 
-function cityReducer(state: CityState, action: CityAction): CityState {
+function domainReducer(state: CityState, action: CityAction): CityState {
   switch (action.type) {
-    case "CITY_START":
-      return { ...state, isLoading: true, error: null };
-    case "CITY_SUCCESS_CITIES":
+    case "CITY_SUCCESS_CITIES": {
       const { listType = "default" } = action.payload;
       return {
         ...state,
@@ -71,7 +66,8 @@ function cityReducer(state: CityState, action: CityAction): CityState {
         currentPage: action.payload.pagination?.page || state.currentPage,
         error: null,
       };
-    case "CITY_APPEND_SUCCESS":
+    }
+    case "CITY_APPEND_SUCCESS": {
       const { listType: appendListType = "default" } = action.payload;
       return {
         ...state,
@@ -97,55 +93,50 @@ function cityReducer(state: CityState, action: CityAction): CityState {
         currentPage: action.payload.pagination?.page || state.currentPage,
         error: null,
       };
+    }
     case "CITY_SET_PAGE":
-      return {
-        ...state,
-        currentPage: action.payload,
-      };
-    case "CITY_UPDATE_SINGLE":
+      return { ...state, currentPage: action.payload };
+    case "CITY_UPDATE_SINGLE": {
       const existingCityIndex = state.cities.findIndex(
-        (city) => city.id === action.payload.id
+        (c) => c.id === action.payload.id
       );
       if (existingCityIndex !== -1) {
-        const updatedCities = [...state.cities];
-        updatedCities[existingCityIndex] = action.payload;
-        return {
-          ...state,
-          isLoading: false,
-          cities: updatedCities,
-          error: null,
-        };
-      } else {
-        return {
-          ...state,
-          isLoading: false,
-          cities: [...state.cities, action.payload],
-          error: null,
-        };
+        const updated = [...state.cities];
+        updated[existingCityIndex] = action.payload;
+        return { ...state, isLoading: false, cities: updated, error: null };
       }
-    case "CITY_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "CITY_CLEAR_ERROR":
-      return { ...state, error: null };
-    case "CITY_RESET":
-      return initialState;
+      return {
+        ...state,
+        isLoading: false,
+        cities: [...state.cities, action.payload],
+        error: null,
+      };
+    }
     default:
       return state;
   }
 }
 
+const reducer = withAsyncReducer<CityState, CityAction>(
+  domainReducer as any,
+  initialState
+);
+
 export function CityProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(cityReducer, initialState);
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  const handleError = useCallback((error: unknown, customMessage?: string) => {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : customMessage || "An unexpected city error occurred";
-
-    dispatch({ type: "CITY_ERROR", payload: errorMessage });
-    showDialogError("City Error", errorMessage);
-  }, []);
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : customMessage || "An unexpected city error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("City Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
 
   const fetchCities = useCallback(
     async (options?: {
@@ -154,15 +145,13 @@ export function CityProvider({ children }: { children: ReactNode }) {
       sorting?: Sorting;
       listType?: "home" | "recommended" | "default" | "all";
     }): Promise<City[] | null> => {
-      dispatch({ type: "CITY_START" });
-
+      asyncActions.start();
       try {
         const response = await CityService.fetchCities(
           options?.cityOptions,
           options?.pagination,
           options?.sorting
         );
-
         if (response.success && response.data) {
           dispatch({
             type: "CITY_SUCCESS_CITIES",
@@ -174,7 +163,6 @@ export function CityProvider({ children }: { children: ReactNode }) {
           });
           return response.data;
         }
-
         return null;
       } catch (error) {
         handleError(error, "Gagal mengambil daftar kota");
@@ -195,15 +183,13 @@ export function CityProvider({ children }: { children: ReactNode }) {
         listType?: "home" | "recommended" | "default" | "all";
       }
     ): Promise<City[] | null> => {
-      dispatch({ type: "CITY_START" });
-
+      asyncActions.start();
       try {
         const response = await CityService.searchCities(
           query,
           options?.cityOptions,
           options?.pagination
         );
-
         if (response.success && response.data) {
           dispatch({
             type: options?.append
@@ -217,7 +203,6 @@ export function CityProvider({ children }: { children: ReactNode }) {
           });
           return response.data;
         }
-
         return null;
       } catch (error) {
         handleError(error, "Gagal mencari kota");
@@ -229,18 +214,12 @@ export function CityProvider({ children }: { children: ReactNode }) {
 
   const fetchCityById = useCallback(
     async (cityId: string): Promise<City | null> => {
-      dispatch({ type: "CITY_START" });
-
+      asyncActions.start();
       try {
         const data = await CityService.getCityById(cityId);
-
         if (data) {
-          dispatch({
-            type: "CITY_UPDATE_SINGLE",
-            payload: data,
-          });
+          dispatch({ type: "CITY_UPDATE_SINGLE", payload: data });
         }
-
         return data;
       } catch (error) {
         handleError(error, `Gagal mengambil kota dengan ID ${cityId}`);
@@ -251,19 +230,19 @@ export function CityProvider({ children }: { children: ReactNode }) {
   );
 
   const getCityById = useCallback(
-    (cityId: string): City | undefined => {
-      return state.cities.find((city) => city.id === cityId);
-    },
+    (cityId: string): City | undefined =>
+      state.cities.find((c) => c.id === cityId),
     [state.cities]
   );
 
-  const clearError = useCallback(() => {
-    dispatch({ type: "CITY_CLEAR_ERROR" });
-  }, []);
-
-  const resetCityState = useCallback(() => {
-    dispatch({ type: "CITY_RESET" });
-  }, []);
+  const clearError = useCallback(
+    () => asyncActions.clearError(),
+    [asyncActions]
+  );
+  const resetCityState = useCallback(
+    () => asyncActions.reset(),
+    [asyncActions]
+  );
 
   const contextValue = useMemo<CityContextType>(
     () => ({

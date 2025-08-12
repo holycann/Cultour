@@ -1,6 +1,7 @@
 import Colors from "@/constants/Colors";
+import { Image } from "expo-image";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Dimensions, Image, StyleSheet } from "react-native";
+import { Animated, Dimensions, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
@@ -70,7 +71,13 @@ const CustomSplashScreen: React.FC<CustomSplashScreenProps> = ({
   if (!isReady) return null;
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={[styles.container, { backgroundColor }]}>
+    <SafeAreaView 
+      edges={["top", "left", "right"]} 
+      style={[
+        styles.container, 
+        { backgroundColor }
+      ]}
+    >
       <Animated.View
         style={{
           opacity: fadeAnim,
@@ -79,8 +86,15 @@ const CustomSplashScreen: React.FC<CustomSplashScreenProps> = ({
       >
         <Image
           source={imageSource}
-          style={{ width: size, height: size }} // ✅ ukuran dinamis
-          resizeMode="contain"
+          style={{ 
+            width: size, 
+            height: size 
+          }}
+          placeholder={require("@/assets/images/adaptive-icon.png")}
+          contentFit="contain"
+          transition={300}
+          priority="high"
+          recyclingKey="splash-screen-logo"
         />
       </Animated.View>
     </SafeAreaView>

@@ -9,9 +9,9 @@ export interface SearchContextType {
 
   // Search Methods
   performSearch: (
-    request: SearchRequest, 
-    options?: { 
-      pagination?: Pagination 
+    request: SearchRequest,
+    options?: {
+      pagination?: Pagination;
     }
   ) => Promise<SearchResult[] | null>;
 
@@ -22,4 +22,4 @@ export interface SearchContextType {
 
 export const SearchContext = createContext<SearchContextType | undefined>(
   undefined
-); 
+);

@@ -1,10 +1,10 @@
 import { supabase } from "@/config/supabase";
 import { AuthContext, AuthContextType } from "@/contexts/AuthContext";
 import { AuthService } from "@/services/authService";
+import notify from "@/services/notificationService";
 import { UserService } from "@/services/userService";
 import { AuthCredentials, RegistrationData, User } from "@/types/User";
 import { UserProfilePayload } from "@/types/UserProfile";
-import { showDialogError, showDialogSuccess } from "@/utils/alert";
 import { logger } from "@/utils/logger";
 import React, {
   ReactNode,
@@ -13,10 +13,8 @@ import React, {
   useMemo,
   useReducer,
 } from "react";
+import { createAsyncActions, withAsyncReducer } from "./asyncFactory";
 
-/**
- * Auth state type for reducer
- */
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -24,20 +22,10 @@ interface AuthState {
   error: string | null;
 }
 
-/**
- * Auth action types for reducer
- */
 type AuthAction =
-  | { type: "AUTH_START" }
   | { type: "AUTH_SUCCESS"; payload: { user: User; token?: string } }
-  | { type: "AUTH_ERROR"; payload: string }
-  | { type: "AUTH_RESET" }
-  | { type: "CLEAR_ERROR" }
   | { type: "SET_TOKEN"; payload: string | null };
 
-/**
- * Initial auth state
- */
 const initialState: AuthState = {
   user: null,
   token: null,
@@ -45,13 +33,8 @@ const initialState: AuthState = {
   error: null,
 };
 
-/**
- * Reducer function for auth state management
- */
-function authReducer(state: AuthState, action: AuthAction): AuthState {
+function domainReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
-    case "AUTH_START":
-      return { ...state, isLoading: true, error: null };
     case "AUTH_SUCCESS":
       return {
         ...state,
@@ -60,12 +43,6 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         token: action.payload.token || null,
         error: null,
       };
-    case "AUTH_ERROR":
-      return { ...state, isLoading: false, error: action.payload };
-    case "AUTH_RESET":
-      return { ...initialState, isLoading: false };
-    case "CLEAR_ERROR":
-      return { ...state, error: null };
     case "SET_TOKEN":
       return { ...state, token: action.payload };
     default:
@@ -73,16 +50,21 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
   }
 }
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+const reducer = withAsyncReducer<AuthState, AuthAction>(domainReducer as any, initialState);
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const asyncActions = createAsyncActions(dispatch);
 
-  /**
-   * Check for authentication status on mount and subscribe to auth changes
-   */
+  const handleError = useCallback(
+    (error: unknown, customMessage?: string) => {
+      const errorMessage = error instanceof Error ? error.message : customMessage || "An unexpected error occurred";
+      asyncActions.error(errorMessage);
+      notify.error("Error", { message: errorMessage });
+    },
+    [asyncActions]
+  );
+
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
@@ -96,11 +78,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
             },
           });
         } else {
-          dispatch({ type: "AUTH_RESET" });
+          asyncActions.reset();
         }
       } catch (error) {
         logger.error("Check Auth Status", "Auth status check error:", error);
-        dispatch({ type: "AUTH_RESET" });
+        asyncActions.reset();
       }
     };
 
@@ -109,7 +91,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Subscribe to auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        dispatch({ type: "AUTH_START" });
+        asyncActions.start();
         const user = session?.user
           ? AuthService.mapSupabaseUserToAuthUser(session.user)
           : null;
@@ -149,11 +131,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
               await UserService.createUserProfile(userProfileData);
 
             if (!profileCreated) {
-              showDialogError("Error", "Gagal membuat profil pengguna");
+              notify.error("Error", { message: "Gagal membuat profil pengguna" });
             }
           }
         } else {
-          dispatch({ type: "AUTH_RESET" });
+          asyncActions.reset();
         }
       }
     );
@@ -164,12 +146,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  /**
-   * Login with email and password
-   */
   const login = useCallback(
     async (credentials: AuthCredentials): Promise<boolean> => {
-      dispatch({ type: "AUTH_START" });
+      asyncActions.start();
 
       try {
         const user = await AuthService.login(credentials);
@@ -179,7 +158,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             type: "AUTH_SUCCESS",
             payload: { user },
           });
-          showDialogSuccess("Success", "Login berhasil!");
+          notify.success("Success", { message: "Login berhasil!" });
           return true;
         }
         return false;
@@ -190,20 +169,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             : "Terjadi kesalahan saat login";
 
         logger.error("Auth", "Error Login", error);
-        dispatch({ type: "AUTH_ERROR", payload: errorMessage });
-        showDialogError("Error", errorMessage);
+        handleError(error, errorMessage);
         return false;
       }
     },
-    []
+    [handleError]
   );
 
-  /**
-   * Register a new user
-   */
   const register = useCallback(
     async (registrationData: RegistrationData): Promise<boolean> => {
-      dispatch({ type: "AUTH_START" });
+      asyncActions.start();
 
       try {
         const user = await AuthService.register(registrationData);
@@ -229,7 +204,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             throw new Error("Gagal membuat profil pengguna");
           }
 
-          showDialogSuccess("Success", "Registrasi berhasil!");
+          notify.success("Success", { message: "Registrasi berhasil!" });
           return true;
         }
 
@@ -241,20 +216,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             : "Terjadi kesalahan saat registrasi";
 
         logger.error("Auth", "Error Register", error);
-        dispatch({ type: "AUTH_ERROR", payload: errorMessage });
-        showDialogError("Error", errorMessage);
+        handleError(error, errorMessage);
         return false;
       }
     },
-    []
+    [handleError]
   );
 
-  /**
-   * Login with OAuth provider
-   */
   const loginWithOAuth = useCallback(
     async (provider: "google"): Promise<string> => {
-      dispatch({ type: "AUTH_START" });
+      asyncActions.start();
 
       try {
         const url = await AuthService.loginWithOAuth(provider);
@@ -265,20 +236,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             ? error.message
             : `Gagal login dengan ${provider}`;
 
-        dispatch({ type: "AUTH_ERROR", payload: errorMessage });
-        showDialogError("Error", errorMessage);
+        handleError(error, errorMessage);
         return "";
       }
     },
-    []
+    [handleError]
   );
 
-  /**
-   * Exchange OAuth code for session
-   */
   const exchangeCodeForSession = useCallback(
     async (code: string): Promise<void> => {
-      dispatch({ type: "AUTH_START" });
+      asyncActions.start();
 
       try {
         await AuthService.exchangeCodeForSession(code);
@@ -286,32 +253,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const errorMessage =
           error instanceof Error ? error.message : "Gagal menukar kode OAuth";
 
-        dispatch({ type: "AUTH_ERROR", payload: errorMessage });
-        showDialogError("Error", errorMessage);
+        handleError(error, errorMessage);
       }
     },
-    []
+    [handleError]
   );
 
-  /**
-   * Logout user
-   */
   const logout = useCallback(async (): Promise<void> => {
     try {
       await AuthService.logout();
-      dispatch({ type: "AUTH_RESET" });
+      asyncActions.reset();
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Gagal logout";
 
-      dispatch({ type: "AUTH_ERROR", payload: errorMessage });
-      showDialogError("Error", errorMessage);
+      handleError(error, errorMessage);
     }
-  }, []);
+  }, [handleError]);
 
-  /**
-   * Get current authentication token
-   */
   const getAuthToken = useCallback(async (): Promise<string | null> => {
     try {
       const token = await AuthService.getAuthToken();
@@ -323,9 +282,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-  /**
-   * Set authentication token
-   */
   const setAuthToken = useCallback(async (token: string): Promise<boolean> => {
     try {
       const result = await AuthService.setAuthToken(token);
@@ -339,28 +295,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-  /**
-   * Clear error state
-   */
   const clearError = useCallback(() => {
-    dispatch({ type: "CLEAR_ERROR" });
-  }, []);
+    asyncActions.clearError();
+  }, [asyncActions]);
 
-  /**
-   * Reset auth state
-   */
   const resetAuthState = useCallback(() => {
-    dispatch({ type: "AUTH_RESET" });
-  }, []);
+    asyncActions.reset();
+  }, [asyncActions]);
 
-  /**
-   * Computed authentication status
-   */
   const isAuthenticated = useMemo(() => !!state.user, [state.user]);
 
-  /**
-   * Context value
-   */
   const value = useMemo(
     (): AuthContextType => ({
       user: state.user,

@@ -1,20 +1,22 @@
-import Button from "@/components/atoms/Button";
+import Button from "@/components/ui/Button";
 import { Typography } from "@/constants/Typography";
 import { useAuth } from "@/hooks/useAuth";
+import notify from "@/services/notificationService";
 import { logger } from "@/utils/logger";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Linking,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Linking,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { AuthFooter } from "./_components/AuthFooter";
+import { AuthLogo } from "./_components/AuthLogo";
+import { AuthTitle } from "./_components/AuthTitle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,24 +46,24 @@ export default function LoginPage() {
   const handleLogin = async () => {
     // Validate inputs
     if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password");
+      notify.error("Validation", { message: "Please enter both email and password" });
       return;
     }
 
     setIsLoading(true);
     try {
-      // logger.log("LoginPage", "Login Attempt", { email });
       const result = await login({ email, password });
 
       if (result) {
+        notify.success("Welcome back!", { message: "Login successful" });
         router.replace("/(tabs)");
       } else {
         logger.error("LoginPage", "Login Failed", null);
-        Alert.alert("Login Failed", "Invalid email or password");
+        notify.error("Login Failed", { message: "Invalid email or password" });
       }
     } catch (error) {
       logger.error("LoginPage", "Login Error", error);
-      Alert.alert("Error", "An unexpected error occurred");
+      notify.error("Error", { message: "An unexpected error occurred" });
     } finally {
       setIsLoading(false);
     }
@@ -74,13 +76,13 @@ export default function LoginPage() {
       if (url) {
         await Linking.openURL(url);
       } else {
-        Alert.alert("Login Error", "Failed to initiate Google login");
+        notify.error("Login Error", { message: "Failed to initiate Google login" });
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Google login failed";
 
-      Alert.alert("Login Error", errorMessage);
+      notify.error("Login Error", { message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -97,21 +99,10 @@ export default function LoginPage() {
     >
       <View className="flex-1 justify-center">
         {/* Logo */}
-        <View className="items-center mb-12">
-          <Image
-            source={require("@/assets/images/splash.png")}
-            style={{ width: 263, height: 263 }}
-            resizeMode="contain"
-          />
-        </View>
+        <AuthLogo />
 
         {/* Title */}
-        <Text
-          className="mb-8 text-[#333]"
-          style={{ ...Typography.styles.title, textAlign: "left" }}
-        >
-          Login
-        </Text>
+        <AuthTitle title="Login" />
 
         {/* Email Input */}
         <View className="mb-6">
@@ -180,14 +171,11 @@ export default function LoginPage() {
         />
 
         {/* Register link */}
-        <View className="items-center">
-          <Text className="text-[#666] text-sm">
-            New here?{" "}
-            <Text className="text-blue-700" onPress={handleRegister}>
-              Sign up
-            </Text>
-          </Text>
-        </View>
+        <AuthFooter
+          message="New here?"
+          linkText="Sign up"
+          onLinkPress={handleRegister}
+        />
       </View>
     </ScrollView>
   );
