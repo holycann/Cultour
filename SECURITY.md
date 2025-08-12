@@ -79,5 +79,5 @@ We are committed to:
 - Security Team: `muhamad.ramadhan.dev@gmail.com`
 - PGP Key: Available upon request
 
-**Last Updated**: [Current Date]
+**Last Updated**: 12/08/2025
 **Version**: 0.1.0-beta.1
